@@ -148,7 +148,7 @@ const ProfileTable = ({
                   .fill(null)
                   .map((_, index) => (
                     <tr key={`loading-${index}`}>
-                      <td colSpan={7} className="text-center p-4">
+                      <td colSpan={8} className="text-center p-4">
                         <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-4 rounded"></div>
                       </td>
                     </tr>
