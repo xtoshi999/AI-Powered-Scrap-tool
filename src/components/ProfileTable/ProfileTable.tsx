@@ -4,6 +4,15 @@ import { ProfileModel } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { toast } from "react-toastify";
+import { FaRegCopy } from "react-icons/fa6";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
+
+const copyToClipboard = (text: string, e?: React.MouseEvent) => {
+  e?.stopPropagation();
+  navigator.clipboard.writeText(text);
+  toast.success("Link copied to clipboard");
+};
 
 const ProfileTable = ({
   loading,
@@ -50,6 +59,7 @@ const ProfileTable = ({
         const statusText = status === true || status === "good" ? "Good" 
           : status === false || status === "bad" ? "Bad"
           : status === "visited" ? "Visited"
+          : status === "sent" ? "Sent"
           : "Yet";
         toast.success(`Profile status updated to "${statusText}"`, {
           position: "top-right",
@@ -98,6 +108,7 @@ const ProfileTable = ({
     if (userStatus === true || userStatus === "good") return "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200";
     if (userStatus === false || userStatus === "bad") return "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200";
     if (userStatus === "visited") return "bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200";
+    if (userStatus === "sent") return "bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200";
     return "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
   };
 
@@ -109,6 +120,7 @@ const ProfileTable = ({
     if (userStatus === true || userStatus === "good") return "Good";
     if (userStatus === false || userStatus === "bad") return "Bad";
     if (userStatus === "visited") return "Visited";
+    if (userStatus === "sent") return "Sent";
     return "Yet";
   };
 
@@ -206,7 +218,14 @@ const ProfileTable = ({
                   {profile.updatedAt ? formatUpdatedAtUTC(profile.updatedAt) : "N/A"}
                 </td>
                     <td className="p-2">
-                      <div className="relative">
+                      <div className="relative flex items-center gap-2">
+                        <button
+                          className="p-1.5 text-xs rounded-md border text-white dark:text-gray-900 bg-blue-400 hover:bg-blue-500"
+                          onClick={(e) => copyToClipboard(String(SITE_URL) + profile.userId, e)}
+                          title="Copy profile link"
+                        >
+                          <FaRegCopy className="w-4 h-4" />
+                        </button>
                         <select
                           value={getStatusText(profile)}
                           onChange={(e) => {
@@ -215,6 +234,7 @@ const ProfileTable = ({
                             if (value === "Good") status = "good";
                             else if (value === "Bad") status = "bad";
                             else if (value === "Visited") status = "visited";
+                            else if (value === "Sent") status = "sent";
                             else status = null;
                             handleStatusChange(profile.userId, status, e);
                           }}
@@ -229,6 +249,7 @@ const ProfileTable = ({
                         >
                           <option value="Yet" className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">Yet</option>
                           <option value="Visited" className="bg-white dark:bg-gray-800 text-blue-800 dark:text-blue-200">Visited</option>
+                          <option value="Sent" className="bg-white dark:bg-gray-800 text-purple-800 dark:text-purple-200">Sent</option>
                           <option value="Good" className="bg-white dark:bg-gray-800 text-green-800 dark:text-green-200">Good</option>
                           <option value="Bad" className="bg-white dark:bg-gray-800 text-red-800 dark:text-red-200">Bad</option>
                         </select>

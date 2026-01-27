@@ -80,6 +80,7 @@ const ProfileOverview = ({
         const statusText = status === true || status === "good" ? "Good" 
           : status === false || status === "bad" ? "Bad"
           : status === "visited" ? "Visited"
+          : status === "sent" ? "Sent"
           : "Yet";
         toast.success(`Profile status updated to "${statusText}"`, {
           position: "top-right",
@@ -165,6 +166,7 @@ const ProfileOverview = ({
     if (userStatus === true || userStatus === "good") return "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200";
     if (userStatus === false || userStatus === "bad") return "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200";
     if (userStatus === "visited") return "bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200";
+    if (userStatus === "sent") return "bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200";
     return "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
   };
 
@@ -176,6 +178,7 @@ const ProfileOverview = ({
     if (userStatus === true || userStatus === "good") return "Good";
     if (userStatus === false || userStatus === "bad") return "Bad";
     if (userStatus === "visited") return "Visited";
+    if (userStatus === "sent") return "Sent";
     return "Yet";
   };
 
@@ -193,6 +196,7 @@ const ProfileOverview = ({
             if (value === "Good") status = "good";
             else if (value === "Bad") status = "bad";
             else if (value === "Visited") status = "visited";
+            else if (value === "Sent") status = "sent";
             else status = null;
             handleStatusChange(status);
           }}
@@ -206,6 +210,7 @@ const ProfileOverview = ({
         >
           <option value="Yet" className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">Yet</option>
           <option value="Visited" className="bg-white dark:bg-gray-800 text-blue-800 dark:text-blue-200">Visited</option>
+          <option value="Sent" className="bg-white dark:bg-gray-800 text-purple-800 dark:text-purple-200">Sent</option>
           <option value="Good" className="bg-white dark:bg-gray-800 text-green-800 dark:text-green-200">Good</option>
           <option value="Bad" className="bg-white dark:bg-gray-800 text-red-800 dark:text-red-200">Bad</option>
         </select>

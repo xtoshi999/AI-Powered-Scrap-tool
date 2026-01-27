@@ -65,12 +65,12 @@ export async function PUT(request: NextRequest) {
     } else if (status === null || status === "yet") {
       statusValue = null; // Remove entry for "yet"
     } else if (typeof status === "string") {
-      // Support "good", "bad", "yet", "visited"
-      if (["good", "bad", "yet", "visited"].includes(status.toLowerCase())) {
+      // Support "good", "bad", "yet", "visited", "sent"
+      if (["good", "bad", "yet", "visited", "sent"].includes(status.toLowerCase())) {
         statusValue = status.toLowerCase() === "yet" ? null : status.toLowerCase();
       } else {
         return NextResponse.json(
-          { error: "Invalid status value. Must be 'good', 'bad', 'yet', or 'visited'" },
+          { error: "Invalid status value. Must be 'good', 'bad', 'yet', 'visited', or 'sent'" },
           { status: 400 }
         );
       }
