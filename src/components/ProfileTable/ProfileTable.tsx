@@ -220,7 +220,7 @@ const ProfileTable = ({
                     <td className="p-2">
                       <div className="relative flex items-center gap-2">
                         <button
-                          className="p-1.5 text-xs rounded-md border text-white dark:text-gray-900 bg-blue-400 hover:bg-blue-500"
+                          className="p-1.5 text-xs rounded-md hover:text-blue-500 dark:text-gray-500 text-white"
                           onClick={(e) => copyToClipboard(String(SITE_URL) + profile.userId, e)}
                           title="Copy profile link"
                         >
