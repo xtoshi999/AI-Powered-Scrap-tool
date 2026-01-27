@@ -54,11 +54,17 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Save link error:", error);
     
     // Handle duplicate key error (in case unique constraint fails)
-    if (error.code === 11000) {
+    const isDuplicateKeyError =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: number }).code === 11000;
+
+    if (isDuplicateKeyError) {
       return NextResponse.json(
         { error: "This link already exists" },
         { status: 409 }

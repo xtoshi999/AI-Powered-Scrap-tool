@@ -55,12 +55,38 @@ export async function PUT(request: NextRequest) {
       profile.viewers = new Map();
     }
 
-    if (status === null) {
+    // Convert status to string format
+    // Support both old format (boolean/null) and new format (string)
+    let statusValue: string | null = null;
+    if (status === true) {
+      statusValue = "good";
+    } else if (status === false) {
+      statusValue = "bad";
+    } else if (status === null || status === "yet") {
+      statusValue = null; // Remove entry for "yet"
+    } else if (typeof status === "string") {
+      // Support "good", "bad", "yet", "visited", "sent"
+      if (["good", "bad", "yet", "visited", "sent"].includes(status.toLowerCase())) {
+        statusValue = status.toLowerCase() === "yet" ? null : status.toLowerCase();
+      } else {
+        return NextResponse.json(
+          { error: "Invalid status value. Must be 'good', 'bad', 'yet', 'visited', or 'sent'" },
+          { status: 400 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Invalid status type" },
+        { status: 400 }
+      );
+    }
+
+    if (statusValue === null) {
       // Remove the viewer entry (set to "Yet" status)
       profile.viewers.delete(userId);
     } else {
-      // Set the viewer status (true = Good, false = Bad)
-      profile.viewers.set(userId, status);
+      // Set the viewer status
+      profile.viewers.set(userId, statusValue);
     }
 
     await profile.save();

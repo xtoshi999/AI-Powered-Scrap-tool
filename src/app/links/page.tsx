@@ -43,7 +43,7 @@ const LinksPage = () => {
           autoClose: 4000,
         });
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error. Please try again.", {
         position: "top-right",
         autoClose: 3000,

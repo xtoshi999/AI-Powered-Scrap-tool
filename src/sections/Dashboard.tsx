@@ -93,7 +93,7 @@ const Dashboard = () => {
     setProfile(profile);
   };
 
-  const handleStatusUpdate = (profileId: string, status: boolean | null, viewers?: Record<string, boolean>) => {
+  const handleStatusUpdate = (profileId: string, status: boolean | null, viewers?: Record<string, boolean | string>) => {
     setProfiles(
       profiles.map((p) => {
         if (p.userId === profileId) {
@@ -116,6 +116,7 @@ const Dashboard = () => {
                 delete updatedProfile.viewers[currentUserId];
               } else {
                 // Set the viewer status (true = Good, false = Bad)
+                // Note: This maintains backward compatibility with boolean values
                 updatedProfile.viewers[currentUserId] = status;
               }
             }
@@ -145,6 +146,7 @@ const Dashboard = () => {
           show={overview}
           handleUpdate={handleUpdate}
           handleClose={handleOverviewClose}
+          onStatusUpdate={handleStatusUpdate}
         />
         <ProfileFilter
           filter={filter}

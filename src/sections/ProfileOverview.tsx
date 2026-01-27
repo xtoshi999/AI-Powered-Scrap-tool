@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BsSend } from "react-icons/bs";
@@ -7,6 +7,7 @@ import { FaRegCopy } from "react-icons/fa6";
 import { WiCloudRefresh } from "react-icons/wi";
 import { ProfileModel } from "@/types";
 import { toast } from "react-toastify";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -20,12 +21,128 @@ const ProfileOverview = ({
   show,
   handleClose,
   handleUpdate,
+  onStatusUpdate,
 }: {
   profile: ProfileModel | null;
   show: boolean;
   handleClose: () => void;
   handleUpdate: (profile: ProfileModel) => void;
+  onStatusUpdate?: (profileId: string, status: boolean | null, viewers?: Record<string, boolean>) => void;
 }) => {
+  const { token, user } = useAuth();
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const wasVisitedRef = useRef(false);
+  const initialStatusRef = useRef<string | null | undefined>(undefined);
+
+  const handleStatusChange = useCallback(async (status: string | boolean | null) => {
+    if (!profile || !token || !onStatusUpdate) return;
+    
+    setUpdatingStatus(true);
+    
+    try {
+      const response = await fetch("/api/profiles/status", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          profileId: profile.userId,
+          status,
+        }),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        // Convert status for backward compatibility
+        let statusForUpdate: boolean | null = null;
+        if (status === "good" || status === true) statusForUpdate = true;
+        else if (status === "bad" || status === false) statusForUpdate = false;
+        else if (status === "visited") statusForUpdate = null; // "visited" is a string status
+        else statusForUpdate = null;
+        
+        onStatusUpdate(profile.userId, statusForUpdate, responseData.viewers);
+        
+        // Update local profile state
+        const updatedProfile = { ...profile };
+        if (!updatedProfile.viewers) {
+          updatedProfile.viewers = {};
+        }
+        if (status === null || status === "yet") {
+          delete updatedProfile.viewers[user?.id || ""];
+        } else {
+          // Store as string for new format
+          const statusValue = typeof status === "string" ? status : (status === true ? "good" : "bad");
+          updatedProfile.viewers[user?.id || ""] = statusValue;
+        }
+        handleUpdate(updatedProfile);
+        
+        const statusText = status === true || status === "good" ? "Good" 
+          : status === false || status === "bad" ? "Bad"
+          : status === "visited" ? "Visited"
+          : status === "sent" ? "Sent"
+          : "Yet";
+        toast.success(`Profile status updated to "${statusText}"`, {
+          position: "top-right",
+          autoClose: 2000,
+        });
+      } else {
+        const errorData = await response.json();
+        toast.error(`Failed to update status: ${errorData.error || "Unknown error"}`, {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Network error. Please try again.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }, [profile, token, onStatusUpdate, user, handleUpdate]);
+
+  // Track when overview is opened and current status
+  useEffect(() => {
+    if (show && profile && user) {
+      wasVisitedRef.current = true;
+      // Store initial status
+      const userStatus = profile.viewers?.[user.id];
+      // Convert boolean to string for compatibility
+      if (userStatus === true) {
+        initialStatusRef.current = "good";
+      } else if (userStatus === false) {
+        initialStatusRef.current = "bad";
+      } else {
+        initialStatusRef.current = null;
+      }
+    }
+  }, [show, profile, user]);
+
+  // When closing, update status to "visited" if it was "Yet"
+  useEffect(() => {
+    if (!show && wasVisitedRef.current && profile && user && onStatusUpdate && token) {
+      const currentStatus = profile.viewers?.[user.id];
+      // Convert to string format
+      let statusStr: string | null = null;
+      if (currentStatus === true) {
+        statusStr = "good";
+      } else if (currentStatus === false) {
+        statusStr = "bad";
+      } else if (typeof currentStatus === "string") {
+        statusStr = currentStatus;
+      }
+      
+      // If status is still "Yet" (null/undefined/"yet"), mark as visited
+      if (!statusStr || statusStr === "yet") {
+        handleStatusChange("visited");
+      }
+      wasVisitedRef.current = false;
+    }
+  }, [show, profile, user, onStatusUpdate, token, handleStatusChange]);
+
   const updateProfile = async (url: string) => {
     const response = await fetch("/api/scrape-one", {
       method: "POST",
@@ -41,6 +158,66 @@ const ProfileOverview = ({
     }
   };
 
+  const getStatusColor = (profile: ProfileModel) => {
+    if (!profile.viewers || !user) return "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
+    
+    const userStatus = profile.viewers[user.id];
+    // Handle both old format (boolean) and new format (string)
+    if (userStatus === true || userStatus === "good") return "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200";
+    if (userStatus === false || userStatus === "bad") return "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200";
+    if (userStatus === "visited") return "bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200";
+    if (userStatus === "sent") return "bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200";
+    return "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
+  };
+
+  const getStatusText = (profile: ProfileModel) => {
+    if (!profile.viewers || !user) return "Yet";
+    
+    const userStatus = profile.viewers[user.id];
+    // Handle both old format (boolean) and new format (string)
+    if (userStatus === true || userStatus === "good") return "Good";
+    if (userStatus === false || userStatus === "bad") return "Bad";
+    if (userStatus === "visited") return "Visited";
+    if (userStatus === "sent") return "Sent";
+    return "Yet";
+  };
+
+  const StatusDropdown = () => {
+    if (!profile) return null;
+    
+    return (
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status:</label>
+        <select
+          value={getStatusText(profile)}
+          onChange={(e) => {
+            const value = e.target.value;
+            let status: string | null = null;
+            if (value === "Good") status = "good";
+            else if (value === "Bad") status = "bad";
+            else if (value === "Visited") status = "visited";
+            else if (value === "Sent") status = "sent";
+            else status = null;
+            handleStatusChange(status);
+          }}
+          disabled={updatingStatus}
+          className={`px-3 py-2 rounded text-sm font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${getStatusColor(profile)} ${
+            updatingStatus ? "opacity-50" : ""
+          }`}
+          style={{
+            colorScheme: 'auto'
+          }}
+        >
+          <option value="Yet" className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">Yet</option>
+          <option value="Visited" className="bg-white dark:bg-gray-800 text-blue-800 dark:text-blue-200">Visited</option>
+          <option value="Sent" className="bg-white dark:bg-gray-800 text-purple-800 dark:text-purple-200">Sent</option>
+          <option value="Good" className="bg-white dark:bg-gray-800 text-green-800 dark:text-green-200">Good</option>
+          <option value="Bad" className="bg-white dark:bg-gray-800 text-red-800 dark:text-red-200">Bad</option>
+        </select>
+      </div>
+    );
+  };
+
   return (
     <div
       className={`absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 overflow-auto flex flex-row z-50 ${
@@ -51,6 +228,11 @@ const ProfileOverview = ({
       <div className="w-1/2 overflow-auto">
         {profile && (
           <div className="bg-white dark:bg-gray-900 rounded-l-lg shadow-lg p-6">
+            {/* Status dropdown at top */}
+            <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <StatusDropdown />
+            </div>
+
             <div className="flex items-center gap-6 mb-6">
               {profile.avatar && (
                 <Image
@@ -178,6 +360,11 @@ const ProfileOverview = ({
                   </div>
                 </div>
               </section>
+            </div>
+
+            {/* Status dropdown at bottom */}
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <StatusDropdown />
             </div>
           </div>
         )}

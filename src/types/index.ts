@@ -40,7 +40,7 @@ export type ProfileModel = {
   };
   linkedIn?: string;
   updatedAt?: string | Date;
-  viewers?: Record<string, boolean>;
+  viewers?: Record<string, string | boolean>; // Support both old format (boolean) and new format (string: "good", "bad", "visited")
 };
 
 export type FilterModel = {
