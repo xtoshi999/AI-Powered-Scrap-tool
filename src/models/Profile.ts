@@ -44,7 +44,7 @@ const ProfileSchema = new mongoose.Schema({
   },
   viewers: {
     type: Map,
-    of: Boolean,
+    of: String, // Changed from Boolean to String to support "good", "bad", "yet", "visited"
     default: new Map(),
   }
 });

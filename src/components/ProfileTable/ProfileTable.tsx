@@ -19,7 +19,7 @@ const ProfileTable = ({
   const { token, user } = useAuth();
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-  const handleStatusChange = async (profileId: string, status: boolean | null, e?: React.MouseEvent | React.ChangeEvent) => {
+  const handleStatusChange = async (profileId: string, status: boolean | string | null, e?: React.MouseEvent | React.ChangeEvent) => {
     e?.stopPropagation(); // Prevent row click
     setUpdatingStatus(profileId);
     
@@ -38,10 +38,19 @@ const ProfileTable = ({
 
       if (response.ok) {
         const responseData = await response.json();
-        onStatusUpdate(profileId, status, responseData.viewers);
+        // Convert status for backward compatibility
+        let statusForUpdate: boolean | null = null;
+        if (status === "good" || status === true) statusForUpdate = true;
+        else if (status === "bad" || status === false) statusForUpdate = false;
+        else statusForUpdate = null;
+        
+        onStatusUpdate(profileId, statusForUpdate, responseData.viewers);
         
         // Show success toast
-        const statusText = status === true ? "Good" : status === false ? "Bad" : "Yet";
+        const statusText = status === true || status === "good" ? "Good" 
+          : status === false || status === "bad" ? "Bad"
+          : status === "visited" ? "Visited"
+          : "Yet";
         toast.success(`Profile status updated to "${statusText}"`, {
           position: "top-right",
           autoClose: 2000,
@@ -85,8 +94,10 @@ const ProfileTable = ({
     if (!profile.viewers || !user) return "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
     
     const userStatus = profile.viewers[user.id];
-    if (userStatus === true) return "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200";
-    if (userStatus === false) return "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200";
+    // Handle both old format (boolean) and new format (string)
+    if (userStatus === true || userStatus === "good") return "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200";
+    if (userStatus === false || userStatus === "bad") return "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200";
+    if (userStatus === "visited") return "bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200";
     return "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
   };
 
@@ -94,9 +105,15 @@ const ProfileTable = ({
     if (!profile.viewers || !user) return "Yet";
     
     const userStatus = profile.viewers[user.id];
-    if (userStatus === true) return "Good";
-    if (userStatus === false) return "Bad";
+    // Handle both old format (boolean) and new format (string)
+    if (userStatus === true || userStatus === "good") return "Good";
+    if (userStatus === false || userStatus === "bad") return "Bad";
+    if (userStatus === "visited") return "Visited";
     return "Yet";
+  };
+
+  const isYetStatus = (profile: ProfileModel) => {
+    return getStatusText(profile) === "Yet";
   };
   
   const getTechnicalStatus = (profile: ProfileModel) => {
@@ -153,10 +170,12 @@ const ProfileTable = ({
                       </td>
                     </tr>
                   ))
-              : profiles.map((profile, index) => (
+              : profiles.map((profile, index) => {
+                  const isYet = isYetStatus(profile);
+                  return (
                   <tr
                     key={profile.userId || index}
-                    className="even:bg-gray-100 dark:even:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-600 hover:cursor-pointer"
+                    className={`${!isYet ? "bg-gray-100 dark:bg-gray-800" : ""} hover:bg-gray-300 dark:hover:bg-gray-600 hover:cursor-pointer`}
                     onClick={handleOverview.bind(null, profile)}
                   >
                     <td className="p-2">
@@ -192,9 +211,10 @@ const ProfileTable = ({
                           value={getStatusText(profile)}
                           onChange={(e) => {
                             const value = e.target.value;
-                            let status: boolean | null = null;
-                            if (value === "Good") status = true;
-                            else if (value === "Bad") status = false;
+                            let status: string | null = null;
+                            if (value === "Good") status = "good";
+                            else if (value === "Bad") status = "bad";
+                            else if (value === "Visited") status = "visited";
                             else status = null;
                             handleStatusChange(profile.userId, status, e);
                           }}
@@ -208,13 +228,15 @@ const ProfileTable = ({
                           }}
                         >
                           <option value="Yet" className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">Yet</option>
+                          <option value="Visited" className="bg-white dark:bg-gray-800 text-blue-800 dark:text-blue-200">Visited</option>
                           <option value="Good" className="bg-white dark:bg-gray-800 text-green-800 dark:text-green-200">Good</option>
                           <option value="Bad" className="bg-white dark:bg-gray-800 text-red-800 dark:text-red-200">Bad</option>
                         </select>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
           </tbody>
         </table>
       </div>
