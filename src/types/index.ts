@@ -52,4 +52,5 @@ export type FilterModel = {
   funding?: string;
   keyword?: string;
   technicalStatus?: "technical" | "non-technical" | "";
+  profileStatus?: "yet" | "visited" | "sent" | "good" | "bad" | "";
 };

@@ -16,6 +16,30 @@ const copyToClipboard = (text: string) => {
   toast.success("Link copied to clipboard");
 };
 
+const getTechnicalBadge = (profile: ProfileModel) => {
+  const summary = (profile.sumary || "").toLowerCase();
+  if (!summary) return null;
+  if (/\bnon[- ]?technical\b/.test(summary)) return "N";
+  if (/\btechnical\b/.test(summary)) return "T";
+  return null;
+};
+
+const getTechnicalBadgeColor = (profile: ProfileModel) => {
+  const summary = (profile.sumary || "").toLowerCase();
+  if (!summary) return "";
+  if (/\bnon[- ]?technical\b/.test(summary)) return "bg-orange-500"; // Orange for non-technical
+  if (/\btechnical\b/.test(summary)) return "bg-blue-500"; // Blue for technical
+  return "";
+};
+
+const getAvatarBorderColor = (profile: ProfileModel) => {
+  const summary = (profile.sumary || "").toLowerCase();
+  if (!summary) return "border-gray-300"; // Default border
+  if (/\bnon[- ]?technical\b/.test(summary)) return "border-orange-500"; // Orange border for non-technical
+  if (/\btechnical\b/.test(summary)) return "border-blue-500"; // Blue border for technical
+  return "border-gray-300"; // Default border
+};
+
 const ProfileOverview = ({
   profile,
   show,
@@ -235,15 +259,22 @@ const ProfileOverview = ({
 
             <div className="flex items-center gap-6 mb-6">
               {profile.avatar && (
-                <Image
-                  src={profile.avatar.startsWith("http")
-                    ? profile.avatar
-                    : `https:${profile.avatar}`}
-                  alt={profile.name}
-                  width={160}
-                  height={160}
-                  className="rounded-full"
-                />
+                <div className="relative">
+                  <Image
+                    src={profile.avatar.startsWith("http")
+                      ? profile.avatar
+                      : `https:${profile.avatar}`}
+                    alt={profile.name}
+                    width={160}
+                    height={160}
+                    className={`rounded-full border-4 ${getAvatarBorderColor(profile)}`}
+                  />
+                  {getTechnicalBadge(profile) && (
+                    <div className={`absolute bottom-0 right-0 w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-bold border-2 border-white ${getTechnicalBadgeColor(profile)}`}>
+                      {getTechnicalBadge(profile)}
+                    </div>
+                  )}
+                </div>
               )}
               <div>
                 <div className="flex flex-row gap-4">
@@ -271,7 +302,18 @@ const ProfileOverview = ({
                 <p>{profile.location}</p>
                 <p>{profile?.age} years old</p>
                 <p>Last seen {profile.lastSeen}</p>
-                <p>LinkedIn: {profile?.linkedIn}</p>
+                <div className="flex items-center gap-2">
+                  <span>LinkedIn: {profile?.linkedIn}</span>
+                  {profile?.linkedIn && (
+                    <button
+                      className="p-1 text-xs rounded-md border text-white dark:text-gray-900 bg-blue-400 hover:bg-blue-500"
+                      onClick={() => copyToClipboard(profile.linkedIn!)}
+                      title="Copy LinkedIn URL"
+                    >
+                      <FaRegCopy className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

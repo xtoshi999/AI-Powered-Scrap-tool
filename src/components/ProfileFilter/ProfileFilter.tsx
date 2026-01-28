@@ -24,7 +24,7 @@ const ProfileFilter = ({
         }}
         className="flex flex-col"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-8 gap-4">
           {/* Keyword */}
           <div className="flex flex-col gap-1">
             <label htmlFor="keyword" className="text-sm font-medium text-gray-600 dark:text-gray-300">Keyword</label>
@@ -151,6 +151,26 @@ const ProfileFilter = ({
               <option value="">All</option>
               <option value="technical">Technical</option>
               <option value="non-technical">Non-technical</option>
+            </select>
+          </div>
+
+          {/* Profile Status */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="profileStatus" className="text-sm font-medium text-gray-600 dark:text-gray-300">Profile Status</label>
+            <select
+              id="profileStatus"
+              name="profileStatus"
+              value={filter?.profileStatus || ""}
+              onChange={handleChange}
+              className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800"
+              aria-label="Profile Status"
+            >
+              <option value="">All</option>
+              <option value="yet">Yet</option>
+              <option value="visited">Visited</option>
+              <option value="sent">Sent</option>
+              <option value="good">Good</option>
+              <option value="bad">Bad</option>
             </select>
           </div>
           

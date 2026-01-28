@@ -128,12 +128,28 @@ const ProfileTable = ({
     return getStatusText(profile) === "Yet";
   };
   
-  const getTechnicalStatus = (profile: ProfileModel) => {
+  const getTechnicalBadge = (profile: ProfileModel) => {
     const summary = (profile.sumary || "").toLowerCase();
-    if (!summary) return "N/A";
-    if (/\bnon[- ]?technical\b/.test(summary)) return "Non-technical";
-    if (/\btechnical\b/.test(summary)) return "Technical";
-    return "N/A";
+    if (!summary) return null;
+    if (/\bnon[- ]?technical\b/.test(summary)) return "N";
+    if (/\btechnical\b/.test(summary)) return "T";
+    return null;
+  };
+
+  const getTechnicalBadgeColor = (profile: ProfileModel) => {
+    const summary = (profile.sumary || "").toLowerCase();
+    if (!summary) return "";
+    if (/\bnon[- ]?technical\b/.test(summary)) return "bg-orange-500"; // Orange for non-technical
+    if (/\btechnical\b/.test(summary)) return "bg-blue-500"; // Blue for technical
+    return "";
+  };
+
+  const getAvatarBorderColor = (profile: ProfileModel) => {
+    const summary = (profile.sumary || "").toLowerCase();
+    if (!summary) return "border-gray-300"; // Default border
+    if (/\bnon[- ]?technical\b/.test(summary)) return "border-orange-500"; // Orange border for non-technical
+    if (/\btechnical\b/.test(summary)) return "border-blue-500"; // Blue border for technical
+    return "border-gray-300"; // Default border
   };
   
   const formatUpdatedAtUTC = (value: unknown) => {
@@ -144,13 +160,9 @@ const ProfileTable = ({
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
         timeZone: "UTC",
       }).format(d);
-      return `${formatted} UTC`;
+      return formatted;
     } catch {
       return "N/A";
     }
@@ -158,17 +170,16 @@ const ProfileTable = ({
   return (
     <div className="flex-1 overflow-hidden">
       <div className="h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
-        <table className="min-w-full divide-y divide-gray-200 relative">
-          <thead className="text-left bg-gray-50 dark:bg-gray-800 shadow-lg sticky top-0 z-10">
-            <tr className="font-semibold text-gray-600 dark:text-gray-400 uppercase">
-              <th className="p-4"></th>
-              <th className="p-4">Name</th>
-              <th className="p-4">Technical Status</th>
-              <th className="p-4">Location</th>
-              <th className="p-4">Funding Status</th>
-              <th className="p-4">Last Seen</th>
-              <th className="p-4">Updated Date</th>
-              <th className="p-4">Status</th>
+        <table className="min-w-full divide-y divide-gray-200 relative rounded-xl">
+          <thead className="text-sm text-left bg-gray-50 dark:bg-gray-800 top-0 z-10">
+            <tr className="text-gray-600 dark:text-gray-400 uppercase">
+              <th className="p-2">Table</th>
+              <th className="p-2">Name</th>
+              <th className="p-2">Location</th>
+              <th className="p-2">Funding Status</th>
+              <th className="p-2">Last Seen</th>
+              <th className="p-2">Updated Date</th>
+              <th className="p-2">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -177,7 +188,7 @@ const ProfileTable = ({
                   .fill(null)
                   .map((_, index) => (
                     <tr key={`loading-${index}`}>
-                      <td colSpan={8} className="text-center p-4">
+                      <td colSpan={7} className="text-center p-4">
                         <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-4 rounded"></div>
                       </td>
                     </tr>
@@ -190,37 +201,43 @@ const ProfileTable = ({
                     className={`${!isYet ? "bg-gray-100 dark:bg-gray-800" : ""} hover:bg-gray-300 dark:hover:bg-gray-600 hover:cursor-pointer`}
                     onClick={handleOverview.bind(null, profile)}
                   >
-                    <td className="p-2">
-                      <Image
-                        src={profile.avatar ? (profile.avatar.startsWith("http") ? profile.avatar : ("https:" + profile.avatar)) : "/cutestar.png"} // Use a static fallback image
-                        alt="Profile"
-                        width={72}
-                        height={72}
-                        className="rounded-full"
-                      />
+                    <td className="p-2 flex items-right">
+                      <div className="relative">
+                        <Image
+                          src={profile.avatar ? (profile.avatar.startsWith("http") ? profile.avatar : ("https:" + profile.avatar)) : "/cutestar.png"} // Use a static fallback image
+                          alt="Profile"
+                          width={96}
+                          height={96}
+                          className={`rounded-full border-4 ${getAvatarBorderColor(profile)}`}
+                        />
+                        {getTechnicalBadge(profile) && (
+                          <div className={`absolute right-0 bottom-2 w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white ${getTechnicalBadgeColor(profile)}`}>
+                            {getTechnicalBadge(profile)}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-2 whitespace-nowrap">
+                    <td className="p-4 whitespace-nowrap">
                       {profile.name || "N/A"}
                     </td>
-                <td className="p-2 whitespace-nowrap">
-                  {getTechnicalStatus(profile)}
-                </td>
-                <td className="p-2 whitespace-nowrap">
+                <td className="p-4 whitespace-nowrap">
                   {profile.location || "N/A"}
                 </td>
-                <td className="p-2 max-w-80 text-ellipsis overflow-hidden whitespace-nowrap">
-                  {profile.startup?.funding || "N/A"}
+                <td className="p-4 max-w-80">
+                  <div className="whitespace-normal break-words">
+                    {profile.startup?.funding || "N/A"}
+                  </div>
                 </td>
-                    <td className="p-2 whitespace-nowrap">
+                    <td className="p-4 whitespace-nowrap">
                       {profile.lastSeen ? profile.lastSeen : "N/A"}
                     </td>
-                <td className="p-2 whitespace-nowrap">
+                <td className="p-4 whitespace-nowrap">
                   {profile.updatedAt ? formatUpdatedAtUTC(profile.updatedAt) : "N/A"}
                 </td>
                     <td className="p-2">
                       <div className="relative flex items-center gap-2">
                         <button
-                          className="p-1.5 text-xs rounded-md border text-white dark:text-gray-900 bg-blue-400 hover:bg-blue-500"
+                          className="p-1.5 text-xs rounded-md hover:text-blue-500 dark:text-gray-500 text-white"
                           onClick={(e) => copyToClipboard(String(SITE_URL) + profile.userId, e)}
                           title="Copy profile link"
                         >

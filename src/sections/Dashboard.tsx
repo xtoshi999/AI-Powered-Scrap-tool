@@ -5,8 +5,10 @@ import ProfileOverview from "@/sections/ProfileOverview";
 import ProfileFilter from "@/components/ProfileFilter/ProfileFilter";
 import ProfileTable from "@/components/ProfileTable/ProfileTable";
 import ProfileFooter from "@/components/ProfileFooter/ProfileFooter";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
+  const { token } = useAuth();
   const [total, setTotal] = React.useState(0);
   const [matched, setMatched] = React.useState(0);
   const [curPage, setCurPage] = React.useState(1);
@@ -23,6 +25,7 @@ const Dashboard = () => {
     funding: "",
     keyword: "",
     technicalStatus: "",
+    profileStatus: "",
   });
   const [appliedFilter, setAppliedFilter] = React.useState<FilterModel>({
     name: "",
@@ -31,6 +34,7 @@ const Dashboard = () => {
     funding: "",
     keyword: "",
     technicalStatus: "",
+    profileStatus: "",
   });
 
   const fetchProfiles = useCallback(async () => {
@@ -52,11 +56,16 @@ const Dashboard = () => {
         ...filterParams,
       }).toString();
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(
         `/api/profiles?page=${curPage}&limit=${limit}&${queryParams}`,
         {
           method: "GET",
-          headers: { "Content-Type": "application/json" },
+          headers,
         }
       );
       const data = await response.json();
@@ -68,7 +77,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [curPage, limit, appliedFilter]);
+  }, [curPage, limit, appliedFilter, token]);
 
   useEffect(() => {
     fetchProfiles();
@@ -153,7 +162,7 @@ const Dashboard = () => {
           handleChange={handleFilterChange}
           onSearch={handleSearch}
           onReset={() => {
-            const base = { name: "", age: 0, location: "", funding: "", keyword: "", technicalStatus: "" } as FilterModel;
+            const base = { name: "", age: 0, location: "", funding: "", keyword: "", technicalStatus: "", profileStatus: "" } as FilterModel;
             setFilter(base);
             setAppliedFilter(base);
             setCurPage(1);
