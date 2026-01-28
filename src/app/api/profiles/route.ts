@@ -6,6 +6,12 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+interface MongoCondition {
+  [key: string]: unknown;
+  $or?: Record<string, unknown>[];
+  $nor?: Record<string, unknown>[];
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = parseInt(url.searchParams.get("limit") || "100");
@@ -35,7 +41,7 @@ export async function GET(request: Request) {
 
   const skip = (page - 1) * limit;
   const query: FilterQuery<typeof Profile> = {};
-  const andConditions: any[] = [];
+  const andConditions: MongoCondition[] = [];
 
   // Ensure age is parsed as an integer before using it in the query
   if (age) {
