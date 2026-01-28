@@ -35,6 +35,7 @@ export async function GET(request: Request) {
 
   const skip = (page - 1) * limit;
   const query: FilterQuery<typeof Profile> = {};
+  const andConditions: any[] = [];
 
   // Ensure age is parsed as an integer before using it in the query
   if (age) {
@@ -51,53 +52,55 @@ export async function GET(request: Request) {
   // Broad keyword search across many text fields
   if (keyword && keyword.trim().length > 0) {
     const rx = { $regex: keyword, $options: "i" } as const;
-    query.$or = [
-      { name: rx },
-      { location: rx },
-      { sumary: rx },
-      { intro: rx },
-      { lifeStory: rx },
-      { freeTime: rx },
-      { other: rx },
-      { accomplishments: rx },
-      { linkedIn: rx },
-      { "startup.name": rx },
-      { "startup.description": rx },
-      { "startup.progress": rx },
-      { "startup.funding": rx },
-      { education: rx }, // matches any array element with regex
-      { employment: rx },
-      { "cofounderPreferences.requirements": rx },
-      { "cofounderPreferences.idealPersonality": rx },
-      { "cofounderPreferences.equity": rx },
-      { "interests.shared": rx },
-      { "interests.personal": rx },
-    ];
+    andConditions.push({
+      $or: [
+        { name: rx },
+        { location: rx },
+        { sumary: rx },
+        { intro: rx },
+        { lifeStory: rx },
+        { freeTime: rx },
+        { other: rx },
+        { accomplishments: rx },
+        { linkedIn: rx },
+        { "startup.name": rx },
+        { "startup.description": rx },
+        { "startup.progress": rx },
+        { "startup.funding": rx },
+        { education: rx }, // matches any array element with regex
+        { employment: rx },
+        { "cofounderPreferences.requirements": rx },
+        { "cofounderPreferences.idealPersonality": rx },
+        { "cofounderPreferences.equity": rx },
+        { "interests.shared": rx },
+        { "interests.personal": rx },
+      ]
+    });
   }
 
   // Add technicalStatus filter
   if (technicalStatus === "technical") {
     // Include 'technical' but not 'non-technical' in sumary OR intro
-    query.$and = [
-      {
-        $or: [
-          { sumary: { $regex: "\\btechnical\\b", $options: "i" } },
-          { intro: { $regex: "\\btechnical\\b", $options: "i" } },
-        ],
-      },
-      {
-        $nor: [
-          { sumary: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
-          { intro: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
-        ],
-      },
-    ];
+    andConditions.push({
+      $or: [
+        { sumary: { $regex: "\\btechnical\\b", $options: "i" } },
+        { intro: { $regex: "\\btechnical\\b", $options: "i" } },
+      ],
+    });
+    andConditions.push({
+      $nor: [
+        { sumary: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
+        { intro: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
+      ],
+    });
   } else if (technicalStatus === "non-technical") {
     // Only match 'non-technical' (or nontechnical etc)
-    query.$or = [
-      { sumary: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
-      { intro: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
-    ];
+    andConditions.push({
+      $or: [
+        { sumary: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
+        { intro: { $regex: "\\bnon[- ]?technical\\b", $options: "i" } },
+      ]
+    });
   }
 
   // Add profile status filter
@@ -106,27 +109,38 @@ export async function GET(request: Request) {
     
     if (profileStatus === "yet") {
       // Profile has no status for this user (field doesn't exist or is null/undefined)
-      query.$or = [
-        { [viewerKey]: { $exists: false } },
-        { [viewerKey]: null },
-        { [viewerKey]: "yet" }
-      ];
+      andConditions.push({
+        $or: [
+          { [viewerKey]: { $exists: false } },
+          { [viewerKey]: null },
+          { [viewerKey]: "yet" }
+        ]
+      });
     } else if (profileStatus === "good") {
       // Handle both old format (true) and new format ("good")
-      query.$or = [
-        { [viewerKey]: true },
-        { [viewerKey]: "good" }
-      ];
+      andConditions.push({
+        $or: [
+          { [viewerKey]: true },
+          { [viewerKey]: "good" }
+        ]
+      });
     } else if (profileStatus === "bad") {
       // Handle both old format (false) and new format ("bad")
-      query.$or = [
-        { [viewerKey]: false },
-        { [viewerKey]: "bad" }
-      ];
+      andConditions.push({
+        $or: [
+          { [viewerKey]: false },
+          { [viewerKey]: "bad" }
+        ]
+      });
     } else {
       // For "visited" and "sent", use exact string match
       query[viewerKey] = profileStatus;
     }
+  }
+
+  // Combine all conditions with $and if there are multiple conditions
+  if (andConditions.length > 0) {
+    query.$and = andConditions;
   }
 
   try {

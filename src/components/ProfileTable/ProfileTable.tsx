@@ -223,7 +223,7 @@ const ProfileTable = ({
                 <td className="p-4 whitespace-nowrap">
                   {profile.location || "N/A"}
                 </td>
-                <td className="p-4 max-w-64">
+                <td className="p-4 max-w-80">
                   <div className="whitespace-normal break-words">
                     {profile.startup?.funding || "N/A"}
                   </div>
