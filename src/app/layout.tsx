@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import MainProvider from "@/contexts";
 
 import Navbar from "@/components/Navbar/Navbar";
+import ScraperInitializer from "@/components/ScraperInitializer";
 import { ToastContainer } from "react-toastify";
 
 import "./globals.css";
@@ -42,6 +43,7 @@ export default function RootLayout({
       >
         <main>
           <MainProvider>
+            <ScraperInitializer />
             <div className="flex flex-col w-full h-screen">
               <Navbar />
               {children}

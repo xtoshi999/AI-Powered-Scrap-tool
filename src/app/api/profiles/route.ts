@@ -156,11 +156,11 @@ export async function GET(request: Request) {
     const total = await Profile.countDocuments();
     const matched = await Profile.countDocuments(query);
 
-    // Fetch profiles based on the query
+    // Fetch profiles based on the query - sorted by most recently updated first
     const profiles = await Profile.find(query)
       .limit(limit)
       .skip(skip)
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1 })
       .lean()
       .exec();
 
