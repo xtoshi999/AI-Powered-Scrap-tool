@@ -3,11 +3,6 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 export default function ProfileScraper() {
-  const [ssoKey, setSsoKey] = useState("");
-  const [susSession, setSusSession] = useState("");
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({
     running: false,
@@ -18,50 +13,8 @@ export default function ProfileScraper() {
     lastUserId: "",
   });
 
-  const handleScrapeOne = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/scrape-one", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, ssoKey, susSession }),
-      });
-
-      if (!response.ok) toast.error("Failed to fetch profile");
-      else toast.success("Profile fetched successfully");
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleScrape = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/scrape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ssoKey, susSession }),
-      });
-
-      if (!response.ok) throw new Error("Failed to start scraping");
-      const data = await response.json();
-      if (data?.started) {
-        setRunning(true);
-        toast.success("Scrape started");
-      }
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Poll for status updates
   useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | undefined;
     const poll = async () => {
       try {
         const res = await fetch("/api/scrape/status");
@@ -69,17 +22,19 @@ export default function ProfileScraper() {
         const data = await res.json();
         setProgress(data);
         setRunning(Boolean(data?.running));
-      } catch {}
+      } catch {
+        // Silently fail
+      }
     };
-    if (running) {
-      // start polling immediately and then every second
-      poll();
-      intervalId = setInterval(poll, 1000);
-    }
+    
+    // Always poll for status
+    poll();
+    const intervalId = setInterval(poll, 1000);
+    
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      clearInterval(intervalId);
     };
-  }, [running]);
+  }, []);
 
   const handleStop = async () => {
     try {
@@ -89,8 +44,52 @@ export default function ProfileScraper() {
         body: JSON.stringify({ action: "stop" }),
       });
       setRunning(false);
-      toast.info("Scrape stopped");
+      toast.info("Scraping stopped");
     } catch {}
+  };
+
+  const handleStart = async () => {
+    try {
+      const response = await fetch("/api/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to start scraping");
+        return;
+      }
+      
+      const data = await response.json();
+      if (data?.started) {
+        setRunning(true);
+        toast.success("Scraping started");
+      }
+    } catch {
+      toast.error("Error starting scraping");
+    }
+  };
+
+  const handleClear = async () => {
+    try {
+      await fetch("/api/scrape/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+      setProgress({
+        running: progress.running,
+        elapsedMs: 0,
+        scraped: 0,
+        added: 0,
+        updated: 0,
+        lastUserId: "",
+      });
+      toast.success("Statistics cleared");
+    } catch {
+      toast.error("Failed to clear statistics");
+    }
   };
 
   const formatDuration = (ms: number) => {
@@ -103,75 +102,82 @@ export default function ProfileScraper() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <div className="flex flex-col gap-4 mb-8">
-        <input
-          type="text"
-          value={ssoKey}
-          onChange={(e) => setSsoKey(e.target.value)}
-          placeholder="Enter SSO Key"
-          className="flex-1 p-2 border rounded"
-        />
-        <input
-          type="text"
-          value={susSession}
-          onChange={(e) => setSusSession(e.target.value)}
-          placeholder="Enter SUS Session"
-          className="flex-1 p-2 border rounded"
-        />
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="Enter Startup School profile URL"
-          className="flex-1 p-2 border rounded"
-        />
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold mb-2">Background Profile Scraper</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Real-time scraping status - automatically running in the background
+        </p>
       </div>
+
       <div className="flex flex-row justify-center items-center gap-4 mb-8">
-        <button
-          onClick={handleScrapeOne}
-          disabled={running || loading || ssoKey === "" || susSession === "" || url === ""}
-          className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
-        >
-          {loading ? "Loading..." : "Scrape One"}
-        </button>
-        <button
-          onClick={handleScrape}
-          disabled={running || loading || ssoKey === "" || susSession === ""}
-          className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
-        >
-          {running ? "Running..." : loading ? "Starting..." : "Scrape Many"}
-        </button>
-        {running && (
+        {!running ? (
+          <button
+            onClick={handleStart}
+            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors"
+          >
+            Start Scraping
+          </button>
+        ) : (
           <button
             onClick={handleStop}
-            className="px-4 py-2 bg-red-500 text-white rounded"
+            className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors"
           >
-            STOP
+            Stop Scraping
           </button>
         )}
+        <button
+          onClick={handleClear}
+          className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors"
+        >
+          Clear Stats
+        </button>
       </div>
-      {(running || progress.elapsedMs > 0) && (
-        <div className="max-w-4xl mx-auto mb-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-          <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">Elapsed</div>
-            <div className="text-xl font-semibold">{formatDuration(progress.elapsedMs)}</div>
+
+      <div className="mb-6 text-center">
+        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+          running ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+        }`}>
+          <div className={`w-3 h-3 rounded-full ${running ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+          <span className="font-semibold">{running ? 'Scraping Active' : 'Scraping Stopped'}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Elapsed Time</div>
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {formatDuration(progress.elapsedMs)}
           </div>
-          <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">Scraped</div>
-            <div className="text-xl font-semibold">{progress.scraped}</div>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Scraped</div>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {progress.scraped}
           </div>
-          <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">Added</div>
-            <div className="text-xl font-semibold">{progress.added}</div>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">New Profiles Added</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {progress.added}
           </div>
-          <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">Updated</div>
-            <div className="text-xl font-semibold">{progress.updated}</div>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Profiles Updated</div>
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            {progress.updated}
+          </div>
+        </div>
+      </div>
+
+      {progress.lastUserId && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Last Scraped Profile:</div>
+          <div className="text-lg font-mono text-blue-700 dark:text-blue-300 break-all">
+            {progress.lastUserId}
           </div>
         </div>
       )}
-      {error && <div className="text-red-500 mb-4">{error}</div>}
     </div>
   );
 }

@@ -53,4 +53,6 @@ export type FilterModel = {
   keyword?: string;
   technicalStatus?: "technical" | "non-technical" | "";
   profileStatus?: "yet" | "visited" | "sent" | "good" | "bad" | "";
+  updatedDateFrom?: string;
+  updatedDateTo?: string;
 };

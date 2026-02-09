@@ -1,39 +1,39 @@
 import { NextResponse } from "next/server";
-
-type ScrapeProgress = {
-  running: boolean;
-  startedAt: number; // epoch ms
-  scraped: number;
-  added: number;
-  updated: number;
-  lastUserId: string;
-};
-
-function getProgress(): ScrapeProgress {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  if (!globalThis.__SCRAPE_PROGRESS__) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    globalThis.__SCRAPE_PROGRESS__ = {
-      running: false,
-      startedAt: 0,
-      scraped: 0,
-      added: 0,
-      updated: 0,
-      lastUserId: "",
-    } as ScrapeProgress;
-  }
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  return globalThis.__SCRAPE_PROGRESS__ as ScrapeProgress;
-}
+import { getScraperProgress } from "@/lib/backgroundScraper";
 
 export async function GET() {
-  const progress = getProgress();
+  const progress = getScraperProgress();
   const now = Date.now();
   const elapsedMs = progress.startedAt > 0 ? Math.max(0, now - progress.startedAt) : 0;
   return NextResponse.json({ ...progress, elapsedMs });
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { action } = body;
+
+    if (action === "clear") {
+      const progress = getScraperProgress();
+      const wasRunning = progress.running;
+      
+      // Reset all stats but keep running state
+      progress.startedAt = wasRunning ? Date.now() : 0;
+      progress.scraped = 0;
+      progress.added = 0;
+      progress.updated = 0;
+      progress.lastUserId = "";
+
+      return NextResponse.json({ ok: true, cleared: true });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
 }
 
 
