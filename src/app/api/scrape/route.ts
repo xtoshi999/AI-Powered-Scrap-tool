@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
-import { startBackgroundScraper, stopBackgroundScraper } from "@/lib/backgroundScraper";
+import {
+  startBackgroundScraper,
+  stopBackgroundScraper,
+  type ScrapeMode,
+} from "@/lib/backgroundScraper";
+
+function parseMode(value: unknown): ScrapeMode {
+  if (value === "next") return "next";
+  return "database";
+}
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { action?: string };
-  const { action } = body;
+  const body = (await request.json()) as { action?: string; mode?: string };
+  const { action, mode } = body;
 
   // Stop action
   if (action === "stop") {
@@ -13,8 +22,12 @@ export async function POST(request: Request) {
 
   // Start action (default)
   try {
-    startBackgroundScraper();
-    return NextResponse.json({ ok: true, started: true });
+    startBackgroundScraper(parseMode(mode));
+    return NextResponse.json({
+      ok: true,
+      started: true,
+      mode: parseMode(mode),
+    });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";

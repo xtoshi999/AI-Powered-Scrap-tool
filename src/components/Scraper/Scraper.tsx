@@ -2,8 +2,11 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
+type ScrapeMode = "next" | "database";
+
 export default function ProfileScraper() {
   const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState<ScrapeMode>("database");
   const [progress, setProgress] = useState({
     running: false,
     elapsedMs: 0,
@@ -11,6 +14,7 @@ export default function ProfileScraper() {
     added: 0,
     updated: 0,
     lastUserId: "",
+    mode: "database" as ScrapeMode,
   });
 
   // Poll for status updates
@@ -20,7 +24,15 @@ export default function ProfileScraper() {
         const res = await fetch("/api/scrape/status");
         if (!res.ok) return;
         const data = await res.json();
-        setProgress(data);
+        setProgress({
+          running: Boolean(data.running),
+          elapsedMs: data.elapsedMs ?? 0,
+          scraped: data.scraped ?? 0,
+          added: data.added ?? 0,
+          updated: data.updated ?? 0,
+          lastUserId: data.lastUserId ?? "",
+          mode: data.mode === "next" ? "next" : "database",
+        });
         setRunning(Boolean(data?.running));
       } catch {
         // Silently fail
@@ -53,18 +65,22 @@ export default function ProfileScraper() {
       const response = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ mode }),
       });
 
       if (!response.ok) {
         toast.error("Failed to start scraping");
         return;
       }
-      
+
       const data = await response.json();
       if (data?.started) {
         setRunning(true);
-        toast.success("Scraping started");
+        toast.success(
+          data.mode === "database"
+            ? "Scraping started (database ID cycle)"
+            : "Scraping started (next candidate)"
+        );
       }
     } catch {
       toast.error("Error starting scraping");
@@ -85,6 +101,7 @@ export default function ProfileScraper() {
         added: 0,
         updated: 0,
         lastUserId: "",
+        mode: progress.mode,
       });
       toast.success("Statistics cleared");
     } catch {
@@ -106,7 +123,59 @@ export default function ProfileScraper() {
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold mb-2">Background Profile Scraper</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Real-time scraping status - automatically running in the background
+          Choose how profiles are loaded, then start. Status updates every second.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-center gap-3 mb-8">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Update method
+        </span>
+        <div
+          className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-900"
+          role="group"
+          aria-label="Scrape mode"
+        >
+          <button
+            type="button"
+            disabled={running}
+            onClick={() => setMode("next")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              mode === "next"
+                ? "bg-white dark:bg-gray-800 shadow text-blue-600 dark:text-blue-400"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            } ${running ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            Next candidate
+          </button>
+          <button
+            type="button"
+            disabled={running}
+            onClick={() => setMode("database")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              mode === "database"
+                ? "bg-white dark:bg-gray-800 shadow text-blue-600 dark:text-blue-400"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            } ${running ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            Database IDs
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md text-center">
+          <strong>Next candidate</strong> uses your{" "}
+          <code className="text-[11px] bg-gray-200 dark:bg-gray-800 px-1 rounded">
+            NEXT_PUBLIC_FETCH_URL
+          </code>{" "}
+          (e.g. …/next).{" "}
+          <strong>Database IDs</strong> always picks the profile with the oldest{" "}
+          <code className="text-[11px] bg-gray-200 dark:bg-gray-800 px-1 rounded">
+            updatedAt
+          </code>
+          , scrapes{" "}
+          <code className="text-[11px] bg-gray-200 dark:bg-gray-800 px-1 rounded">
+            NEXT_PUBLIC_SITE_URL
+          </code>
+          + id, updates it, then queries again for the next stalest row (no new inserts).
         </p>
       </div>
 
@@ -139,7 +208,13 @@ export default function ProfileScraper() {
           running ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
         }`}>
           <div className={`w-3 h-3 rounded-full ${running ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-          <span className="font-semibold">{running ? 'Scraping Active' : 'Scraping Stopped'}</span>
+          <span className="font-semibold">
+            {running
+              ? progress.mode === "database"
+                ? "Scraping (database cycle)"
+                : "Scraping (next candidate)"
+              : "Scraping Stopped"}
+          </span>
         </div>
       </div>
 

@@ -7,12 +7,13 @@ import ProfileTable from "@/components/ProfileTable/ProfileTable";
 import ProfileFooter from "@/components/ProfileFooter/ProfileFooter";
 import { useAuth } from "@/contexts/AuthContext";
 
+const PAGE_SIZE = 20;
+
 const Dashboard = () => {
   const { token } = useAuth();
   const [total, setTotal] = React.useState(0);
   const [matched, setMatched] = React.useState(0);
   const [curPage, setCurPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(20);
   const [profile, setProfile] = React.useState<ProfileModel | null>(null);
   const [overview, setOverview] = React.useState<boolean>(false);
   const [loading, setLoading] = React.useState(false);
@@ -62,7 +63,7 @@ const Dashboard = () => {
       }
 
       const response = await fetch(
-        `/api/profiles?page=${curPage}&limit=${limit}&${queryParams}`,
+        `/api/profiles?page=${curPage}&limit=${PAGE_SIZE}&${queryParams}`,
         {
           method: "GET",
           headers,
@@ -77,7 +78,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [curPage, limit, appliedFilter, token]);
+  }, [curPage, appliedFilter, token]);
 
   useEffect(() => {
     fetchProfiles();
@@ -179,9 +180,8 @@ const Dashboard = () => {
           total={total}
           matched={matched}
           curPage={curPage}
-          limit={limit}
+          pageSize={PAGE_SIZE}
           setCurPage={setCurPage}
-          setLimit={setLimit}
         />
       </div>
     </>
