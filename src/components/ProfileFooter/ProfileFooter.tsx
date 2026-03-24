@@ -1,3 +1,5 @@
+import type { Dispatch, SetStateAction } from "react";
+
 const ProfileFooter = ({
   total,
   matched,
@@ -9,7 +11,7 @@ const ProfileFooter = ({
   matched: number;
   curPage: number;
   pageSize: number;
-  setCurPage: (page: number) => void;
+  setCurPage: Dispatch<SetStateAction<number>>;
 }) => {
   const totalPages = Math.max(1, Math.ceil(matched / pageSize) || 1);
 

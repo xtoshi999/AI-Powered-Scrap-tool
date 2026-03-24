@@ -238,12 +238,12 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
           let expectedDbUserId: string | undefined;
 
           if (mode === "database") {
-            const stalest = await Profile.findOne(
+            const stalest = (await Profile.findOne(
               { userId: { $exists: true, $nin: [null, ""] } },
               { userId: 1, updatedAt: 1 }
             )
               .sort({ updatedAt: 1, userId: 1 })
-              .lean();
+              .lean()) as { userId?: string } | null;
 
             if (!stalest?.userId) {
               console.warn("No profiles in database; retrying in 10s...");
