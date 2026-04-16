@@ -1,9 +1,12 @@
-import * as cheerio from "cheerio";
 import playwright from "playwright";
 import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
+import { parseStartupSchoolProfile } from "@/lib/parseStartupSchoolProfile";
 
 export type ScrapeMode = "next" | "database";
+
+/** After this many failed fetch attempts in database mode, the profile row is removed (likely gone from Startup School). */
+const MAX_DB_FETCH_FAILURES = 3;
 
 type ScrapeProgress = {
   running: boolean;
@@ -11,6 +14,8 @@ type ScrapeProgress = {
   scraped: number;
   added: number;
   updated: number;
+  /** Profiles removed after MAX_DB_FETCH_FAILURES consecutive failures (database mode only). */
+  removed: number;
   lastUserId: string;
   mode: ScrapeMode;
 };
@@ -27,6 +32,7 @@ function getProgress(): ScrapeProgress {
       scraped: 0,
       added: 0,
       updated: 0,
+      removed: 0,
       lastUserId: "",
       mode: "database",
     } as ScrapeProgress;
@@ -47,134 +53,28 @@ function getCandidateBaseUrl(): string {
   return "https://www.startupschool.org/cofounder-matching/candidate";
 }
 
-function parseProfileFromHtml(html: string, pageUrl: string) {
-  const $ = cheerio.load(html);
-  const mainContent = $(".css-139x40p");
-  if (!mainContent.length) return null;
-
-  const userId = pageUrl.split("/").filter(Boolean).pop();
-  if (!userId) return null;
-
-  const age = mainContent.find('[title="Age"]').text().replace(/\D/g, "");
-  const profile = {
-    userId,
-    name: mainContent.find(".css-y9z691").text().trim(),
-    location: mainContent.find('[title="Location"]').text().trim(),
-    age: age ? parseInt(age, 10) : null,
-    lastSeen: mainContent
-      .find('[title="Last seen on co-founder matching"]')
-      .text()
-      .replace("Last seen ", "")
-      .trim(),
-    avatar: mainContent.find(".css-1bm26bw").attr("src"),
-    sumary: mainContent.find(".css-1wz7m2j").text().trim(),
-    intro: mainContent
-      .find('span.css-19yrmx8:contains("Intro")')
-      .next(".css-1tp1ukf")
-      .text()
-      .trim(),
-    lifeStory: mainContent
-      .find('span.css-19yrmx8:contains("Life Story")')
-      .next(".css-1tp1ukf")
-      .text()
-      .trim(),
-    freeTime: mainContent
-      .find('span.css-19yrmx8:contains("Free Time")')
-      .next(".css-1tp1ukf")
-      .text()
-      .trim(),
-    other: mainContent
-      .find('span.css-19yrmx8:contains("Other")')
-      .next(".css-1tp1ukf")
-      .text()
-      .trim(),
-    accomplishments: mainContent
-      .find('span.css-19yrmx8:contains("Impressive accomplishment")')
-      .next(".css-1tp1ukf")
-      .text()
-      .trim(),
-    education: Array.from(
-      new Set(
-        mainContent
-          .find('.css-19yrmx8:contains("Education")')
-          .next(".css-1tp1ukf")
-          .find("li, .css-1a0w822, .css-kaq1dv")
-          .map((_, el) => $(el).text().trim())
-          .get()
-          .filter((text: string) => text.length > 0)
-      )
-    ),
-    employment: Array.from(
-      new Set(
-        mainContent
-          .find('.css-19yrmx8:contains("Employment")')
-          .next(".css-1tp1ukf")
-          .find("li, .css-1a0w822, .css-kaq1dv")
-          .map((_, el) => $(el).text().trim())
-          .get()
-          .filter((text: string) => text.length > 0)
-      )
-    ),
-    startup: {
-      name:
-        mainContent.find(".css-bcaew0 b").first().text().trim() !== ""
-          ? mainContent.find(".css-bcaew0 b").first().text().trim()
-          : "Potential Idea",
-      description:
-        mainContent.find(".css-bcaew0 b").first().text().trim() !== ""
-          ? mainContent
-              .find(
-                `span.css-19yrmx8:contains("${mainContent
-                  .find(".css-bcaew0 b")
-                  .first()
-                  .text()
-                  .trim()}")`
-              )
-              .next(".css-1tp1ukf")
-              .text()
-              .trim()
-          : mainContent.find("div.css-1hla380").text().trim(),
-      progress: mainContent
-        .find('span.css-19yrmx8:contains("Progress")')
-        .next(".css-1tp1ukf")
-        .text()
-        .trim(),
-      funding: mainContent
-        .find('span.css-19yrmx8:contains("Funding Status")')
-        .next(".css-1tp1ukf")
-        .text()
-        .trim(),
-    },
-    cofounderPreferences: {
-      requirements: mainContent
-        .find(".css-1hla380 p")
-        .map((_, el) => $(el).text().trim())
-        .get(),
-      idealPersonality: mainContent
-        .find('span.css-19yrmx8:contains("Ideal co-founder")')
-        .next(".css-1tp1ukf")
-        .text()
-        .trim(),
-      equity: mainContent
-        .find('span.css-19yrmx8:contains("Equity expectations")')
-        .next(".css-1tp1ukf")
-        .text()
-        .trim(),
-    },
-    interests: {
-      shared: mainContent
-        .find(".css-1v9f1hn")
-        .map((_, el) => $(el).text().trim())
-        .get(),
-      personal: mainContent
-        .find(".css-1lw35t7")
-        .map((_, el) => $(el).text().trim())
-        .get(),
-    },
-    linkedIn: mainContent.find(".css-107cmgv").attr("title"),
-  };
-
-  return profile;
+async function recordDatabaseFetchFailure(
+  userId: string | undefined
+): Promise<"deleted" | "tracked" | "skipped"> {
+  if (!userId) return "skipped";
+  const updated = await Profile.findOneAndUpdate(
+    { userId },
+    { $inc: { scrapeFailCount: 1 }, $currentDate: { updatedAt: true } },
+    { new: true }
+  );
+  if (!updated) return "skipped";
+  const n = updated.scrapeFailCount ?? 0;
+  if (n >= MAX_DB_FETCH_FAILURES) {
+    await Profile.deleteOne({ userId });
+    console.warn(
+      `🗑️ Removed profile ${userId} after ${MAX_DB_FETCH_FAILURES} failed fetch attempts (not on platform or unreachable).`
+    );
+    return "deleted";
+  }
+  console.warn(
+    `⚠️ Fetch failure ${n}/${MAX_DB_FETCH_FAILURES} for ${userId} (will remove at ${MAX_DB_FETCH_FAILURES}).`
+  );
+  return "tracked";
 }
 
 let scraperRunning = false;
@@ -234,9 +134,8 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
       const baseUrl = getCandidateBaseUrl();
 
       while (getProgress().running) {
+        let expectedDbUserId: string | undefined;
         try {
-          let expectedDbUserId: string | undefined;
-
           if (mode === "database") {
             const stalest = (await Profile.findOne(
               { userId: { $exists: true, $nin: [null, ""] } },
@@ -264,12 +163,17 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
             });
           }
 
-          await page.waitForSelector(".css-139x40p", { timeout: 10000 });
+          await page.waitForSelector(".css-139x40p", { timeout: 20000 });
 
           const content = await page.content();
-          const profile = parseProfileFromHtml(content, page.url());
+          const profile = parseStartupSchoolProfile(content, page.url());
           if (!profile) {
             console.error("Could not parse profile from page:", page.url());
+            if (mode === "database") {
+              const p = getProgress();
+              const out = await recordDatabaseFetchFailure(expectedDbUserId);
+              if (out === "deleted") p.removed += 1;
+            }
             await new Promise((r) => setTimeout(r, 5000));
             continue;
           }
@@ -281,13 +185,18 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
               console.warn(
                 `Database cycle: URL id ${expectedDbUserId} ≠ parsed page id ${profile.userId}; skip update (no insert).`
               );
+              const out = await recordDatabaseFetchFailure(expectedDbUserId);
+              if (out === "deleted") p.removed += 1;
               await new Promise((r) => setTimeout(r, 3000));
               continue;
             }
 
             const result = await Profile.findOneAndUpdate(
               { userId: expectedDbUserId },
-              { $set: profile, $currentDate: { updatedAt: true } },
+              {
+                $set: { ...profile, scrapeFailCount: 0 },
+                $currentDate: { updatedAt: true },
+              },
               { upsert: false, new: true }
             );
 
@@ -309,7 +218,10 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
             const existing = await Profile.findOne({ userId: profile.userId });
             const result = await Profile.findOneAndUpdate(
               { userId: profile.userId },
-              { $set: profile, $currentDate: { updatedAt: true } },
+              {
+                $set: { ...profile, scrapeFailCount: 0 },
+                $currentDate: { updatedAt: true },
+              },
               { upsert: true, new: true, setDefaultsOnInsert: true }
             );
 
@@ -333,6 +245,11 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
           await new Promise((r) => setTimeout(r, 3000));
         } catch (err) {
           console.error("Error scraping profile:", err);
+          if (mode === "database") {
+            const p = getProgress();
+            const out = await recordDatabaseFetchFailure(expectedDbUserId);
+            if (out === "deleted") p.removed += 1;
+          }
           await new Promise((r) => setTimeout(r, 5000));
         }
       }

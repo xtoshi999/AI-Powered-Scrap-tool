@@ -10,6 +10,8 @@ const ProfileSchema = new mongoose.Schema({
     default: null,
   },
   lastSeen: String,
+  /** Approximate minutes since last co-founder-matching activity; derived from `lastSeen` text for filtering. */
+  lastSeenMinutesApprox: { type: Number, required: false },
   avatar: String,
   sumary: String,
   intro: String,
@@ -35,6 +37,8 @@ const ProfileSchema = new mongoose.Schema({
     personal: [String],
   },
   linkedIn: String,
+  /** Database-mode scraper: consecutive failed fetches (missing/invalid on platform). Reset on success. */
+  scrapeFailCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date },
   status: {

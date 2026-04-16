@@ -3,6 +3,12 @@ import { FilterQuery } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
 import jwt from "jsonwebtoken";
+import {
+  isLastSeenWithinParam,
+  lastSeenWithinToMaxMinutes,
+  profileWithinLastSeenThreshold,
+} from "@/lib/lastSeen";
+import { parseUpdatedDateFromInput } from "@/lib/parseUpdatedDateFilter";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -19,10 +25,11 @@ export async function GET(request: Request) {
   const name = url.searchParams.get("name");
   const age = url.searchParams.get("age");
   const location = url.searchParams.get("location");
-  const funding = url.searchParams.get("funding");
+  const lastSeenWithinRaw = url.searchParams.get("lastSeenWithin");
   const keyword = url.searchParams.get("keyword");
   const technicalStatus = url.searchParams.get("technicalStatus");
   const profileStatus = url.searchParams.get("profileStatus");
+  const updatedDateFromRaw = url.searchParams.get("updatedDateFrom");
 
   // Get user ID from token for profile status filtering
   let userId: string | null = null;
@@ -53,7 +60,18 @@ export async function GET(request: Request) {
 
   if (name) query.name = { $regex: name, $options: "i" };
   if (location) query.location = { $regex: location, $options: "i" };
-  if (funding) query["startup.funding"] = { $regex: funding, $options: "i" };
+
+  const lastSeenMaxMinutes =
+    lastSeenWithinRaw && isLastSeenWithinParam(lastSeenWithinRaw)
+      ? lastSeenWithinToMaxMinutes(lastSeenWithinRaw)
+      : null;
+
+  if (updatedDateFromRaw) {
+    const from = parseUpdatedDateFromInput(updatedDateFromRaw);
+    if (from) {
+      query.updatedAt = { $gte: from };
+    }
+  }
 
   // Broad keyword search across many text fields
   if (keyword && keyword.trim().length > 0) {
@@ -152,20 +170,39 @@ export async function GET(request: Request) {
   try {
     await connectDB();
 
-    // Get total count of matching documents
     const total = await Profile.countDocuments();
-    const matched = await Profile.countDocuments(query);
 
-    // Fetch profiles based on the query - sorted by most recently updated first
-    const profiles = await Profile.find(query)
-      .limit(limit)
-      .skip(skip)
-      .sort({ updatedAt: -1 })
-      .lean()
-      .exec();
+    let matched: number;
+    let profiles: Record<string, unknown>[];
+
+    if (lastSeenMaxMinutes !== null) {
+      const allMatching = await Profile.find(query)
+        .sort({ updatedAt: -1 })
+        .lean()
+        .exec();
+      const filtered = allMatching.filter((p) =>
+        profileWithinLastSeenThreshold(
+          {
+            lastSeen: p.lastSeen as string | undefined,
+            lastSeenMinutesApprox: p.lastSeenMinutesApprox as number | undefined,
+          },
+          lastSeenMaxMinutes
+        )
+      );
+      matched = filtered.length;
+      profiles = filtered.slice(skip, skip + limit) as Record<string, unknown>[];
+    } else {
+      matched = await Profile.countDocuments(query);
+      profiles = (await Profile.find(query)
+        .limit(limit)
+        .skip(skip)
+        .sort({ updatedAt: -1 })
+        .lean()
+        .exec()) as Record<string, unknown>[];
+    }
 
     return NextResponse.json(
-      { data: profiles, total, matched }, // Simplified object syntax
+      { data: profiles, total, matched },
       { status: 200 }
     );
   } catch (error: unknown) {

@@ -13,6 +13,7 @@ export default function ProfileScraper() {
     scraped: 0,
     added: 0,
     updated: 0,
+    removed: 0,
     lastUserId: "",
     mode: "database" as ScrapeMode,
   });
@@ -30,6 +31,7 @@ export default function ProfileScraper() {
           scraped: data.scraped ?? 0,
           added: data.added ?? 0,
           updated: data.updated ?? 0,
+          removed: data.removed ?? 0,
           lastUserId: data.lastUserId ?? "",
           mode: data.mode === "next" ? "next" : "database",
         });
@@ -100,6 +102,7 @@ export default function ProfileScraper() {
         scraped: 0,
         added: 0,
         updated: 0,
+        removed: 0,
         lastUserId: "",
         mode: progress.mode,
       });
@@ -218,7 +221,7 @@ export default function ProfileScraper() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Elapsed Time</div>
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -241,6 +244,12 @@ export default function ProfileScraper() {
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Profiles Updated</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
             {progress.updated}
+          </div>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Removed (DB mode)</div>
+          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {progress.removed}
           </div>
         </div>
       </div>

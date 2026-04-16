@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       progress.scraped = 0;
       progress.added = 0;
       progress.updated = 0;
+      progress.removed = 0;
       progress.lastUserId = "";
 
       return NextResponse.json({ ok: true, cleared: true });

@@ -24,7 +24,7 @@ const ProfileFilter = ({
         }}
         className="flex flex-col"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-9 gap-4">
           {/* Keyword */}
           <div className="flex flex-col gap-1">
             <label htmlFor="keyword" className="text-sm font-medium text-gray-600 dark:text-gray-300">Keyword</label>
@@ -115,26 +115,25 @@ const ProfileFilter = ({
             </div>
           </div>
 
-          {/* Funding */}
+          {/* Last seen (more recent than) */}
           <div className="flex flex-col gap-1">
-            <label htmlFor="funding" className="text-sm font-medium text-gray-600 dark:text-gray-300">Funding Status</label>
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
-                </svg>
-              </span>
-              <input
-                type="text"
-                name="funding"
-                id="funding"
-                value={filter?.funding || ""}
-                onChange={handleChange}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800"
-                placeholder="e.g. bootstrapped, seed, series A"
-                aria-label="Funding Status"
-              />
-            </div>
+            <label htmlFor="lastSeenWithin" className="text-sm font-medium text-gray-600 dark:text-gray-300">Last seen</label>
+            <select
+              id="lastSeenWithin"
+              name="lastSeenWithin"
+              value={filter?.lastSeenWithin ?? ""}
+              onChange={handleChange}
+              className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800"
+              aria-label="Last seen within"
+            >
+              <option value="">Any</option>
+              <option value="1d">Within 1 day</option>
+              <option value="7d">Within 7 days</option>
+              <option value="15d">Within 15 days</option>
+              <option value="1m">Within 1 month</option>
+              <option value="2m">Within 2 months</option>
+              <option value="3m">Within 3 months</option>
+            </select>
           </div>
           
           {/* Technical Status */}
@@ -152,6 +151,23 @@ const ProfileFilter = ({
               <option value="technical">Technical</option>
               <option value="non-technical">Non-technical</option>
             </select>
+          </div>
+
+          {/* Updated at (from) */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="updatedDateFrom" className="text-sm font-medium text-gray-600 dark:text-gray-300">Updated from</label>
+            <input
+              type="text"
+              name="updatedDateFrom"
+              id="updatedDateFrom"
+              value={filter?.updatedDateFrom ?? ""}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800"
+              placeholder="DD/M/YYYY e.g. 15/4/2026"
+              aria-label="Show profiles updated on or after this date (UTC)"
+              title="Profiles with updatedAt on or after this calendar date (00:00 UTC)"
+              autoComplete="off"
+            />
           </div>
 
           {/* Profile Status */}
@@ -187,17 +203,14 @@ const ProfileFilter = ({
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex w-1/2 h-10 items-center gap-2 px-4 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              className="inline-flex w-1/2 h-10 items-center justify-center px-2 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               title="Search"
             >
               {loading ? (
                 <span className="inline-block h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
-                </svg>
+                "Search"
               )}
-              <span>Search</span>
             </button>
           </div>
         </div>

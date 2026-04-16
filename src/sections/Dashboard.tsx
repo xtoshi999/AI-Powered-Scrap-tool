@@ -23,19 +23,21 @@ const Dashboard = () => {
     name: "",
     age: 0,
     location: "",
-    funding: "",
+    lastSeenWithin: "",
     keyword: "",
     technicalStatus: "",
     profileStatus: "",
+    updatedDateFrom: "",
   });
   const [appliedFilter, setAppliedFilter] = React.useState<FilterModel>({
     name: "",
     age: 0,
     location: "",
-    funding: "",
+    lastSeenWithin: "",
     keyword: "",
     technicalStatus: "",
     profileStatus: "",
+    updatedDateFrom: "",
   });
 
   const fetchProfiles = useCallback(async () => {
@@ -163,7 +165,16 @@ const Dashboard = () => {
           handleChange={handleFilterChange}
           onSearch={handleSearch}
           onReset={() => {
-            const base = { name: "", age: 0, location: "", funding: "", keyword: "", technicalStatus: "", profileStatus: "" } as FilterModel;
+            const base = {
+              name: "",
+              age: 0,
+              location: "",
+              lastSeenWithin: "",
+              keyword: "",
+              technicalStatus: "",
+              profileStatus: "",
+              updatedDateFrom: "",
+            } as FilterModel;
             setFilter(base);
             setAppliedFilter(base);
             setCurPage(1);
