@@ -14,7 +14,7 @@ const BANNED_COUNTRIES = new Set([
   "tanzania",
   "nigeria",
   "japan",
-  'chian',
+  'china',
   'indonesia',
   'ukraine',
   'africa'
