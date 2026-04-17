@@ -135,14 +135,15 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
 
       while (getProgress().running) {
         let expectedDbUserId: string | undefined;
+        let expectedDbDocId: string | undefined;
         try {
           if (mode === "database") {
             const stalest = (await Profile.findOne(
               { userId: { $exists: true, $nin: [null, ""] } },
-              { userId: 1, updatedAt: 1 }
+              { _id: 1, userId: 1, updatedAt: 1 }
             )
               .sort({ updatedAt: 1, userId: 1 })
-              .lean()) as { userId?: string } | null;
+              .lean()) as { _id?: { toString: () => string }; userId?: string } | null;
 
             if (!stalest?.userId) {
               console.warn("No profiles in database; retrying in 10s...");
@@ -151,6 +152,7 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
             }
 
             expectedDbUserId = stalest.userId;
+            expectedDbDocId = stalest._id?.toString();
             const profileUrl = `${baseUrl}/${expectedDbUserId}`;
             await page.goto(profileUrl, {
               waitUntil: "domcontentloaded",
@@ -192,7 +194,9 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
             }
 
             const result = await Profile.findOneAndUpdate(
-              { userId: expectedDbUserId },
+              expectedDbDocId
+                ? { _id: expectedDbDocId, userId: expectedDbUserId }
+                : { userId: expectedDbUserId },
               {
                 $set: { ...profile, scrapeFailCount: 0 },
                 $currentDate: { updatedAt: true },
