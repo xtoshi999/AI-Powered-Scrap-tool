@@ -14,6 +14,10 @@ const BANNED_COUNTRIES = new Set([
   "tanzania",
   "nigeria",
   "japan",
+  'chian',
+  'indonesia',
+  'ukraine',
+  'africa'
 ]);
 
 type ScrapeProgress = {
