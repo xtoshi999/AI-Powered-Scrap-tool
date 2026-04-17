@@ -8,6 +8,7 @@ export type AuthContextProps = {
 };
 
 export type ProfileModel = {
+  _id?: string;
   userId: string;
   name: string;
   location: string;

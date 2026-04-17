@@ -167,6 +167,10 @@ const ProfileTable = ({
       return "N/A";
     }
   };
+
+  const getRowKey = (profile: ProfileModel, index: number) =>
+    profile._id || `${profile.userId || "profile"}-${index}`;
+
   return (
     <div className="flex-1 overflow-hidden">
       <div className="h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
@@ -197,7 +201,7 @@ const ProfileTable = ({
                   const isYet = isYetStatus(profile);
                   return (
                   <tr
-                    key={profile.userId || index}
+                    key={getRowKey(profile, index)}
                     className={`${!isYet ? "bg-gray-100 dark:bg-gray-800" : ""} hover:bg-gray-300 dark:hover:bg-gray-600 hover:cursor-pointer`}
                     onClick={handleOverview.bind(null, profile)}
                   >
