@@ -7,6 +7,14 @@ export type ScrapeMode = "next" | "database";
 
 /** After this many failed fetch attempts in database mode, the profile row is removed (likely gone from Startup School). */
 const MAX_DB_FETCH_FAILURES = 3;
+const BANNED_COUNTRIES = new Set([
+  "colombia",
+  "india",
+  "pakistan",
+  "tanzania",
+  "nigeria",
+  "japan",
+]);
 
 type ScrapeProgress = {
   running: boolean;
@@ -51,6 +59,15 @@ function getCandidateBaseUrl(): string {
     return fetchUrl.slice(0, idx + "/candidate".length);
   }
   return "https://www.startupschool.org/cofounder-matching/candidate";
+}
+
+function getCountryFromLocation(location: string | undefined): string {
+  if (!location) return "";
+  const parts = location
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return (parts[parts.length - 1] || "").toLowerCase();
 }
 
 async function recordDatabaseFetchFailure(
@@ -181,6 +198,26 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
           }
 
           const p = getProgress();
+
+          const country = getCountryFromLocation(profile.location);
+          const isBannedCountry = BANNED_COUNTRIES.has(country);
+          if (isBannedCountry) {
+            if (mode === "database" && expectedDbDocId) {
+              const removed = await Profile.deleteOne({ _id: expectedDbDocId });
+              if (removed.deletedCount > 0) {
+                p.removed += 1;
+              }
+              console.log(
+                `🚫 REMOVED (banned country: ${country}): ${expectedDbUserId}`
+              );
+            } else {
+              console.log(
+                `🚫 SKIPPED (banned country: ${country}): ${profile.userId}`
+              );
+            }
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
+          }
 
           if (mode === "database" && expectedDbUserId) {
             if (profile.userId !== expectedDbUserId) {
