@@ -100,11 +100,16 @@ async function recordDatabaseFetchFailure(
 
 let scraperRunning = false;
 
-export async function startBackgroundScraper(mode: ScrapeMode = "database") {
+/** @returns true if a new scraper loop was started; false if already running or validation failed. */
+export async function startBackgroundScraper(
+  mode: ScrapeMode = "database"
+): Promise<boolean> {
   if (scraperRunning) {
     console.log("Background scraper already running");
-    return;
+    return false;
   }
+  // Claim synchronously so concurrent API calls cannot each start a loop (they would scrape the same stalest row twice).
+  scraperRunning = true;
 
   const ssoKey = process.env.NEXT_PUBLIC_SSO_KEY ?? "";
   const susSession = process.env.NEXT_PUBLIC_SUS_SESSION ?? "";
@@ -112,15 +117,16 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
 
   if (!ssoKey || !susSession) {
     console.error("Missing required environment variables for scraping");
-    return;
+    scraperRunning = false;
+    return false;
   }
 
   if (mode === "next" && !nextUrl) {
     console.error("NEXT_PUBLIC_FETCH_URL is required for next-candidate mode");
-    return;
+    scraperRunning = false;
+    return false;
   }
 
-  scraperRunning = true;
   const progress = getProgress();
   progress.running = true;
   progress.startedAt = Date.now();
@@ -312,6 +318,8 @@ export async function startBackgroundScraper(mode: ScrapeMode = "database") {
       console.log("🛑 Background scraper stopped");
     }
   })();
+
+  return true;
 }
 
 export function stopBackgroundScraper() {

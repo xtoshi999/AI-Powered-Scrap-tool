@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
 import jwt from "jsonwebtoken";
+import {
+  normalizeViewerStatus,
+  recordMarkIfChanged,
+  type MarkKind,
+} from "@/lib/dailyMarkStats";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -31,7 +36,7 @@ export async function PUT(request: NextRequest) {
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
-      userId = decoded.userId;
+      userId = String(decoded.userId);
     } catch {
       return NextResponse.json(
         { error: "Invalid token" },
@@ -81,6 +86,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const previousRaw = profile.viewers?.get(userId);
+    const previousNorm = normalizeViewerStatus(previousRaw);
+
     if (statusValue === null) {
       // Remove the viewer entry (set to "Yet" status)
       profile.viewers.delete(userId);
@@ -89,7 +97,20 @@ export async function PUT(request: NextRequest) {
       profile.viewers.set(userId, statusValue);
     }
 
+    const nextMark: MarkKind | null =
+      statusValue === "visited" ||
+      statusValue === "sent" ||
+      statusValue === "good" ||
+      statusValue === "bad"
+        ? statusValue
+        : null;
+
     await profile.save();
+    try {
+      await recordMarkIfChanged(userId, previousNorm, nextMark);
+    } catch (err) {
+      console.error("Daily mark stats update failed:", err);
+    }
 
     return NextResponse.json(
       { 

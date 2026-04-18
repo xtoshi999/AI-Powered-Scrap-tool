@@ -4,10 +4,55 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { useCallback, useEffect, useState } from "react";
 
 const Navbar = () => {
-  const { isAuthenticated, user, setToken, setUser } = useAuth();
+  const { isAuthenticated, user, setToken, setUser, token } = useAuth();
   const router = useRouter();
+  const [markStats, setMarkStats] = useState({
+    visited: 0,
+    sent: 0,
+    good: 0,
+    bad: 0,
+    dayKey: "",
+  });
+
+  const fetchMarkStats = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/profiles/mark-stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        visited?: number;
+        sent?: number;
+        good?: number;
+        bad?: number;
+        dayKey?: string;
+      };
+      setMarkStats({
+        visited: data.visited ?? 0,
+        sent: data.sent ?? 0,
+        good: data.good ?? 0,
+        bad: data.bad ?? 0,
+        dayKey: data.dayKey ?? "",
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    void fetchMarkStats();
+  }, [isAuthenticated, token, fetchMarkStats]);
+
+  useEffect(() => {
+    const onRefresh = () => void fetchMarkStats();
+    window.addEventListener("daily-mark-stats-refresh", onRefresh);
+    return () => window.removeEventListener("daily-mark-stats-refresh", onRefresh);
+  }, [fetchMarkStats]);
 
   const handleLogout = async () => {
     try {
@@ -54,6 +99,27 @@ const Navbar = () => {
               <Link href="/about">
                 <button className="text-white hover:text-gray-300">About</button>
               </Link>
+              <div
+                className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-[10px] sm:text-xs text-gray-300 border border-gray-600 rounded-md px-2 sm:px-3 py-1 sm:py-1.5 max-w-[min(100%,28rem)]"
+                title={`Marks today (UTC ${markStats.dayKey || "—"}). Counts reset at UTC midnight.`}
+              >
+                <span>
+                  Visited:{" "}
+                  <strong className="text-blue-300 tabular-nums">{markStats.visited}</strong>
+                </span>
+                <span>
+                  Sent:{" "}
+                  <strong className="text-purple-300 tabular-nums">{markStats.sent}</strong>
+                </span>
+                <span>
+                  Good:{" "}
+                  <strong className="text-green-300 tabular-nums">{markStats.good}</strong>
+                </span>
+                <span>
+                  Bad:{" "}
+                  <strong className="text-red-300 tabular-nums">{markStats.bad}</strong>
+                </span>
+              </div>
               <div className="flex items-center space-x-4">
                 <span className="text-white text-sm">
                   Welcome, {user?.name || user?.email}

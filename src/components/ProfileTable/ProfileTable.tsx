@@ -46,6 +46,9 @@ const ProfileTable = ({
       });
 
       if (response.ok) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("daily-mark-stats-refresh"));
+        }
         const responseData = await response.json();
         // Convert status for backward compatibility
         let statusForUpdate: boolean | null = null;

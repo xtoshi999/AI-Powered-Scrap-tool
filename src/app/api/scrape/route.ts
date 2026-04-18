@@ -22,10 +22,10 @@ export async function POST(request: Request) {
 
   // Start action (default)
   try {
-    startBackgroundScraper(parseMode(mode));
+    const started = await startBackgroundScraper(parseMode(mode));
     return NextResponse.json({
       ok: true,
-      started: true,
+      started,
       mode: parseMode(mode),
     });
   } catch (error: unknown) {
