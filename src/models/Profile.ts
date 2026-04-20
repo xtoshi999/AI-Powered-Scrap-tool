@@ -39,6 +39,8 @@ const ProfileSchema = new mongoose.Schema({
   linkedIn: String,
   /** Database-mode scraper: consecutive failed fetches (missing/invalid on platform). Reset on success. */
   scrapeFailCount: { type: Number, default: 0 },
+  /** Temporary claim lock for database-mode oldest-first scraping. */
+  scrapeLockedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date },
   status: {

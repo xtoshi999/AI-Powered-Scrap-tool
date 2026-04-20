@@ -7,6 +7,8 @@ export type ScrapeMode = "next" | "database";
 
 /** After this many failed fetch attempts in database mode, the profile row is removed (likely gone from Startup School). */
 const MAX_DB_FETCH_FAILURES = 3;
+/** If a scraper crashes mid-cycle, allow reclaim after this duration. */
+const SCRAPE_LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 const BANNED_COUNTRIES = new Set([
   "colombia",
   "india",
@@ -98,6 +100,33 @@ async function recordDatabaseFetchFailure(
   return "tracked";
 }
 
+async function claimOldestProfileForDatabaseMode(): Promise<
+  { _id?: { toString: () => string }; userId?: string } | null
+> {
+  const lockExpiredBefore = new Date(Date.now() - SCRAPE_LOCK_TIMEOUT_MS);
+  return (await Profile.findOneAndUpdate(
+    {
+      userId: { $exists: true, $nin: [null, ""] },
+      $or: [
+        { scrapeLockedAt: { $exists: false } },
+        { scrapeLockedAt: null },
+        { scrapeLockedAt: { $lt: lockExpiredBefore } },
+      ],
+    },
+    { $set: { scrapeLockedAt: new Date() } },
+    {
+      sort: { updatedAt: 1, userId: 1 },
+      new: true,
+      projection: { _id: 1, userId: 1, updatedAt: 1 },
+    }
+  ).lean()) as { _id?: { toString: () => string }; userId?: string } | null;
+}
+
+async function releaseDatabaseScrapeLock(docId: string | undefined): Promise<void> {
+  if (!docId) return;
+  await Profile.updateOne({ _id: docId }, { $unset: { scrapeLockedAt: "" } });
+}
+
 let scraperRunning = false;
 
 /** @returns true if a new scraper loop was started; false if already running or validation failed. */
@@ -165,15 +194,10 @@ export async function startBackgroundScraper(
         let expectedDbDocId: string | undefined;
         try {
           if (mode === "database") {
-            const stalest = (await Profile.findOne(
-              { userId: { $exists: true, $nin: [null, ""] } },
-              { _id: 1, userId: 1, updatedAt: 1 }
-            )
-              .sort({ updatedAt: 1, userId: 1 })
-              .lean()) as { _id?: { toString: () => string }; userId?: string } | null;
+            const stalest = await claimOldestProfileForDatabaseMode();
 
             if (!stalest?.userId) {
-              console.warn("No profiles in database; retrying in 10s...");
+              console.warn("No claimable profiles in database; retrying in 10s...");
               await new Promise((r) => setTimeout(r, 10000));
               continue;
             }
@@ -202,6 +226,7 @@ export async function startBackgroundScraper(
               const p = getProgress();
               const out = await recordDatabaseFetchFailure(expectedDbUserId);
               if (out === "deleted") p.removed += 1;
+              await releaseDatabaseScrapeLock(expectedDbDocId);
             }
             await new Promise((r) => setTimeout(r, 5000));
             continue;
@@ -236,6 +261,7 @@ export async function startBackgroundScraper(
               );
               const out = await recordDatabaseFetchFailure(expectedDbUserId);
               if (out === "deleted") p.removed += 1;
+              await releaseDatabaseScrapeLock(expectedDbDocId);
               await new Promise((r) => setTimeout(r, 3000));
               continue;
             }
@@ -246,6 +272,7 @@ export async function startBackgroundScraper(
                 : { userId: expectedDbUserId },
               {
                 $set: { ...profile, scrapeFailCount: 0 },
+                $unset: { scrapeLockedAt: "" },
                 $currentDate: { updatedAt: true },
               },
               { upsert: false, new: true }
@@ -255,6 +282,7 @@ export async function startBackgroundScraper(
               console.warn(
                 `Database cycle (oldest first): no document for userId ${expectedDbUserId} (removed from DB?); skip.`
               );
+              await releaseDatabaseScrapeLock(expectedDbDocId);
               await new Promise((r) => setTimeout(r, 3000));
               continue;
             }
@@ -308,6 +336,7 @@ export async function startBackgroundScraper(
             const p = getProgress();
             const out = await recordDatabaseFetchFailure(expectedDbUserId);
             if (out === "deleted") p.removed += 1;
+            await releaseDatabaseScrapeLock(expectedDbDocId);
           }
           await new Promise((r) => setTimeout(r, 5000));
         }
