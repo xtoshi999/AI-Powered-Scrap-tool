@@ -43,12 +43,15 @@ const getAvatarBorderColor = (profile: ProfileModel) => {
 const ProfileOverview = ({
   profile,
   show,
+  panelSide = "right",
   handleClose,
   handleUpdate,
   onStatusUpdate,
 }: {
   profile: ProfileModel | null;
   show: boolean;
+  /** Which half of the screen shows the detail: "right" (default) or "left" */
+  panelSide?: "left" | "right";
   handleClose: () => void;
   handleUpdate: (profile: ProfileModel) => void;
   onStatusUpdate?: (profileId: string, status: boolean | null, viewers?: Record<string, boolean>) => void;
@@ -245,16 +248,15 @@ const ProfileOverview = ({
     );
   };
 
-  return (
+  const backdrop = (
+    <div className="w-1/2" onClick={handleClose} aria-hidden />
+  );
+  const panelShell = profile ? (
     <div
-      className={`absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 overflow-auto flex flex-row z-50 ${
-        show ? "" : "hidden"
+      className={`bg-white dark:bg-gray-900 shadow-lg p-6 ${
+        panelSide === "right" ? "rounded-l-lg" : "rounded-r-lg"
       }`}
     >
-      <div className="w-1/2" onClick={handleClose}></div>
-      <div className="w-1/2 overflow-auto">
-        {profile && (
-          <div className="bg-white dark:bg-gray-900 rounded-l-lg shadow-lg p-6">
             {/* Status dropdown at top */}
             <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
               <StatusDropdown />
@@ -412,8 +414,29 @@ const ProfileOverview = ({
               <StatusDropdown />
             </div>
           </div>
-        )}
-      </div>
+  ) : null;
+
+  const panelWrap = (
+    <div className="w-1/2 overflow-auto min-h-0">{panelShell}</div>
+  );
+
+  return (
+    <div
+      className={`absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 overflow-auto flex flex-row z-50 ${
+        show ? "" : "hidden"
+      }`}
+    >
+      {panelSide === "right" ? (
+        <>
+          {backdrop}
+          {panelWrap}
+        </>
+      ) : (
+        <>
+          {panelWrap}
+          {backdrop}
+        </>
+      )}
     </div>
   );
 };

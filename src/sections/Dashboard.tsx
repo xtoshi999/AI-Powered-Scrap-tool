@@ -16,6 +16,8 @@ const Dashboard = () => {
   const [curPage, setCurPage] = React.useState(1);
   const [profile, setProfile] = React.useState<ProfileModel | null>(null);
   const [overview, setOverview] = React.useState<boolean>(false);
+  /** Which half of the screen shows the detail panel: left column click → right; right column click → left */
+  const [overviewPanelSide, setOverviewPanelSide] = React.useState<"left" | "right">("right");
   const [loading, setLoading] = React.useState(false);
   const [profiles, setProfiles] = React.useState<ProfileModel[]>([]);
   // Draft filter reflects UI inputs; appliedFilter is used to fetch
@@ -141,8 +143,9 @@ const Dashboard = () => {
     );
   };
 
-  const handleOverview = (profile: ProfileModel) => {
+  const handleOverview = (profile: ProfileModel, sourceColumn: 0 | 1) => {
     setProfile(profile);
+    setOverviewPanelSide(sourceColumn === 0 ? "right" : "left");
     setOverview(true);
   };
 
@@ -156,6 +159,7 @@ const Dashboard = () => {
         <ProfileOverview
           profile={profile}
           show={overview}
+          panelSide={overviewPanelSide}
           handleUpdate={handleUpdate}
           handleClose={handleOverviewClose}
           onStatusUpdate={handleStatusUpdate}

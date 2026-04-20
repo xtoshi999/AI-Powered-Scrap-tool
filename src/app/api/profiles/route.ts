@@ -4,11 +4,12 @@ import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
 import jwt from "jsonwebtoken";
 import {
-  isLastSeenWithinParam,
-  lastSeenWithinToMaxMinutes,
+  parseLastSeenFilterInput,
+  profileOlderThanLastSeenThreshold,
   profileWithinLastSeenThreshold,
 } from "@/lib/lastSeen";
 import { parseUpdatedDateFromInput } from "@/lib/parseUpdatedDateFilter";
+import { escapeRegExp, parseKeywordAndTerms } from "@/lib/keywordSearch";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -61,10 +62,7 @@ export async function GET(request: Request) {
   if (name) query.name = { $regex: name, $options: "i" };
   if (location) query.location = { $regex: location, $options: "i" };
 
-  const lastSeenMaxMinutes =
-    lastSeenWithinRaw && isLastSeenWithinParam(lastSeenWithinRaw)
-      ? lastSeenWithinToMaxMinutes(lastSeenWithinRaw)
-      : null;
+  const lastSeenFilter = parseLastSeenFilterInput(lastSeenWithinRaw);
 
   if (updatedDateFromRaw) {
     const from = parseUpdatedDateFromInput(updatedDateFromRaw);
@@ -73,9 +71,10 @@ export async function GET(request: Request) {
     }
   }
 
-  // Broad keyword search across many text fields
-  if (keyword && keyword.trim().length > 0) {
-    const rx = { $regex: keyword, $options: "i" } as const;
+  // Broad keyword search: multiple terms separated by AND (each term must match somewhere)
+  const keywordTerms = parseKeywordAndTerms(keyword);
+  for (const term of keywordTerms) {
+    const rx = { $regex: escapeRegExp(term), $options: "i" } as const;
     andConditions.push({
       $or: [
         { name: rx },
@@ -98,7 +97,7 @@ export async function GET(request: Request) {
         { "cofounderPreferences.equity": rx },
         { "interests.shared": rx },
         { "interests.personal": rx },
-      ]
+      ],
     });
   }
 
@@ -175,20 +174,24 @@ export async function GET(request: Request) {
     let matched: number;
     let profiles: Record<string, unknown>[];
 
-    if (lastSeenMaxMinutes !== null) {
+    if (
+      lastSeenFilter.kind === "within" ||
+      lastSeenFilter.kind === "older"
+    ) {
       const allMatching = await Profile.find(query)
         .sort({ updatedAt: -1 })
         .lean()
         .exec();
-      const filtered = allMatching.filter((p) =>
-        profileWithinLastSeenThreshold(
-          {
-            lastSeen: p.lastSeen as string | undefined,
-            lastSeenMinutesApprox: p.lastSeenMinutesApprox as number | undefined,
-          },
-          lastSeenMaxMinutes
-        )
-      );
+      const filtered = allMatching.filter((p) => {
+        const row = {
+          lastSeen: p.lastSeen as string | undefined,
+          lastSeenMinutesApprox: p.lastSeenMinutesApprox as number | undefined,
+        };
+        if (lastSeenFilter.kind === "within") {
+          return profileWithinLastSeenThreshold(row, lastSeenFilter.maxMinutes);
+        }
+        return profileOlderThanLastSeenThreshold(row, lastSeenFilter.minMinutes);
+      });
       matched = filtered.length;
       profiles = filtered.slice(skip, skip + limit) as Record<string, unknown>[];
     } else {

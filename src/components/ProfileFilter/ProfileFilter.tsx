@@ -41,7 +41,8 @@ const ProfileFilter = ({
                 value={(filter?.keyword as string) || ""}
                 onChange={handleChange}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800"
-                placeholder="e.g. AI, React, seed, fundraising"
+                placeholder='e.g. react AND typescript — or "phrase one" AND "phrase two"'
+                title="Separate terms with AND (case-insensitive). Each term must appear somewhere in the profile. Use quotes for multi-word phrases."
                 aria-label="Keyword"
               />
             </div>
@@ -115,25 +116,21 @@ const ProfileFilter = ({
             </div>
           </div>
 
-          {/* Last seen (more recent than) */}
+          {/* Last seen: freeform e.g. &lt;20d, &gt;2m */}
           <div className="flex flex-col gap-1">
             <label htmlFor="lastSeenWithin" className="text-sm font-medium text-gray-600 dark:text-gray-300">Last seen</label>
-            <select
+            <input
+              type="text"
               id="lastSeenWithin"
               name="lastSeenWithin"
               value={filter?.lastSeenWithin ?? ""}
               onChange={handleChange}
-              className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800"
-              aria-label="Last seen within"
-            >
-              <option value="">Any</option>
-              <option value="1d">Within 1 day</option>
-              <option value="7d">Within 7 days</option>
-              <option value="15d">Within 15 days</option>
-              <option value="1m">Within 1 month</option>
-              <option value="2m">Within 2 months</option>
-              <option value="3m">Within 3 months</option>
-            </select>
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm bg-white dark:bg-gray-800 font-mono"
+              placeholder="<20d, >2m, <1m"
+              aria-label="Last seen filter"
+              title="Use &lt; for seen within (e.g. &lt;20d, &lt;1m), &gt; for older than (e.g. &gt;2m). Units: h, d, w, m"
+              autoComplete="off"
+            />
           </div>
           
           {/* Technical Status */}

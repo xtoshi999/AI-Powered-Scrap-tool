@@ -46,23 +46,17 @@ export type ProfileModel = {
   viewers?: Record<string, string | boolean>; // Support both old format (boolean) and new format (string: "good", "bad", "visited")
 };
 
-export type LastSeenWithinFilter =
-  | ""
-  | "1d"
-  | "7d"
-  | "15d"
-  | "1m"
-  | "2m"
-  | "3m";
-
 export type FilterModel = {
   name?: string;
   age?: number;
   location?: string;
   sumary?: string;
   startupName?: string;
-  /** Show profiles whose last seen is within this window (more recent than the cutoff). */
-  lastSeenWithin?: LastSeenWithinFilter;
+  /**
+   * Last-seen filter: e.g. "<20d", "<1m", ">2m", ">3d", or bare "20d" (same as "<20d").
+   * `<` = seen within that window; `>` = seen longer ago than that. Empty = any.
+   */
+  lastSeenWithin?: string;
   keyword?: string;
   technicalStatus?: "technical" | "non-technical" | "";
   profileStatus?: "yet" | "visited" | "sent" | "good" | "bad" | "";
