@@ -186,8 +186,8 @@ const ProfileTable = ({
         <th className="p-2">Table</th>
         <th className="p-2">Name</th>
         <th className="p-2">Location</th>
-        <th className="p-2">Last Seen</th>
-        <th className="p-2">Updated Date</th>
+        <th className="p-2">Seen</th>
+        <th className="p-2">Date</th>
         <th className="p-2">Status</th>
       </tr>
     </thead>

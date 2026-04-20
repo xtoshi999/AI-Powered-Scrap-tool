@@ -266,6 +266,14 @@ export async function startBackgroundScraper(
               `✅ UPDATED (stalest first): ${expectedDbUserId} | Total: ${p.scraped} (Added: ${p.added}, Updated: ${p.updated})`
             );
           } else {
+            if (p.lastUserId && p.lastUserId === profile.userId) {
+              console.log(
+                `↩️ SKIPPED DUPLICATE (next mode): ${profile.userId} (same as previous cycle)`
+              );
+              await new Promise((r) => setTimeout(r, 1500));
+              continue;
+            }
+
             const existing = await Profile.findOne({ userId: profile.userId });
             const result = await Profile.findOneAndUpdate(
               { userId: profile.userId },
