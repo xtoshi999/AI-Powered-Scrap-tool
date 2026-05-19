@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import playwright from "playwright";
 import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
-import { parseStartupSchoolProfile } from "@/lib/parseStartupSchoolProfile";
+import {
+  parseStartupSchoolProfile,
+  STARTUP_SCHOOL_PROFILE_READY_SELECTOR,
+  STARTUP_SCHOOL_PROFILE_WAIT_OPTIONS,
+} from "@/lib/parseStartupSchoolProfile";
 
 export async function POST(request: Request) {
   let { url, ssoKey, susSession } = await request.json();
@@ -65,7 +69,10 @@ export async function POST(request: Request) {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
-    await page.waitForSelector(".css-139x40p");
+    await page.waitForSelector(
+      STARTUP_SCHOOL_PROFILE_READY_SELECTOR,
+      STARTUP_SCHOOL_PROFILE_WAIT_OPTIONS
+    );
 
     const content = await page.content();
     const profile = parseStartupSchoolProfile(content, page.url());

@@ -3,6 +3,30 @@ import { parseLastSeenToApproximateMinutes } from "@/lib/lastSeen";
 import type { Cheerio, CheerioAPI } from "cheerio";
 import type { AnyNode } from "domhandler";
 
+/**
+ * Playwright: wait until candidate profile markup is present.
+ * Use `STARTUP_SCHOOL_PROFILE_WAIT_OPTIONS` (`state: 'attached'`): the scraper aborts
+ * external CSS, so Emotion-styled nodes can be 0×0 and never satisfy Playwright's default
+ * `visible` check even though HTML is parseable. The `h1` fallback uses UA layout.
+ */
+export const STARTUP_SCHOOL_PROFILE_READY_SELECTOR =
+  '[title="Location"], [title="Age"], [title="Last seen on co-founder matching"], .page-content .top-container h1';
+
+export const STARTUP_SCHOOL_PROFILE_WAIT_OPTIONS = {
+  state: "attached" as const,
+  timeout: 20000,
+};
+
+function resolveMainProfileRoot($: CheerioAPI): Cheerio<AnyNode> {
+  const fromLocation = $('[title="Location"]').closest(".top-container");
+  if (fromLocation.length) return fromLocation;
+  const fromH1 = $(".page-content .top-container h1").first().closest(".top-container");
+  if (fromH1.length) return fromH1;
+  const top = $(".page-content .top-container").first();
+  if (top.length) return top;
+  return $(".css-139x40p");
+}
+
 function trimCellAfterLabel(main: Cheerio<AnyNode>, labelText: string): string {
   return main
     .find(`span.css-19yrmx8:contains("${labelText}")`)
@@ -36,7 +60,7 @@ function interestPillsFromRow(
  */
 export function parseStartupSchoolProfile(html: string, pageUrl: string) {
   const $ = cheerio.load(html);
-  const mainContent = $(".css-139x40p");
+  const mainContent = resolveMainProfileRoot($);
   if (!mainContent.length) return null;
 
   const userId = pageUrl.split("/").filter(Boolean).pop();

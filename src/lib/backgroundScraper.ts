@@ -1,7 +1,11 @@
 import playwright from "playwright";
 import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
-import { parseStartupSchoolProfile } from "@/lib/parseStartupSchoolProfile";
+import {
+  parseStartupSchoolProfile,
+  STARTUP_SCHOOL_PROFILE_READY_SELECTOR,
+  STARTUP_SCHOOL_PROFILE_WAIT_OPTIONS,
+} from "@/lib/parseStartupSchoolProfile";
 
 export type ScrapeMode = "next" | "database";
 
@@ -129,6 +133,18 @@ async function releaseDatabaseScrapeLock(docId: string | undefined): Promise<voi
 
 let scraperRunning = false;
 
+function getActiveBrowser(): playwright.Browser | undefined {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  return globalThis.__SCRAPE_BROWSER__ as playwright.Browser | undefined;
+}
+
+function setActiveBrowser(browser: playwright.Browser | undefined) {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  globalThis.__SCRAPE_BROWSER__ = browser;
+}
+
 /** @returns true if a new scraper loop was started; false if already running or validation failed. */
 export async function startBackgroundScraper(
   mode: ScrapeMode = "database"
@@ -170,6 +186,7 @@ export async function startBackgroundScraper(
       await connectDB();
 
       browser = await playwright.chromium.launch({ headless: true });
+      setActiveBrowser(browser);
       const context = await browser.newContext({
         ignoreHTTPSErrors: true,
         extraHTTPHeaders: { "Accept-Encoding": "gzip, deflate, br" },
@@ -216,7 +233,10 @@ export async function startBackgroundScraper(
             });
           }
 
-          await page.waitForSelector(".css-139x40p", { timeout: 20000 });
+          await page.waitForSelector(
+            STARTUP_SCHOOL_PROFILE_READY_SELECTOR,
+            STARTUP_SCHOOL_PROFILE_WAIT_OPTIONS
+          );
 
           const content = await page.content();
           const profile = parseStartupSchoolProfile(content, page.url());
@@ -347,6 +367,7 @@ export async function startBackgroundScraper(
       const p = getProgress();
       p.running = false;
       scraperRunning = false;
+      setActiveBrowser(undefined);
       try {
         await browser?.close();
       } catch {
@@ -364,6 +385,13 @@ export function stopBackgroundScraper() {
   progress.running = false;
   scraperRunning = false;
   console.log("⏸️  Stopping background scraper...");
+
+  // Close the browser immediately to abort any in-flight page navigation
+  const browser = getActiveBrowser();
+  if (browser) {
+    setActiveBrowser(undefined);
+    browser.close().catch(() => { /* ignore */ });
+  }
 }
 
 export function getScraperProgress() {

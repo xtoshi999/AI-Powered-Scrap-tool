@@ -52,14 +52,17 @@ export default function ProfileScraper() {
 
   const handleStop = async () => {
     try {
-      await fetch("/api/scrape", {
+      const res = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "stop" }),
       });
+      if (!res.ok) throw new Error("Server error");
       setRunning(false);
       toast.info("Scraping stopped");
-    } catch {}
+    } catch {
+      toast.error("Failed to stop scraping");
+    }
   };
 
   const handleStart = async () => {

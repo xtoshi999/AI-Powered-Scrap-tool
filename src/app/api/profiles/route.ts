@@ -3,11 +3,7 @@ import { FilterQuery } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { Profile } from "@/models/Profile";
 import jwt from "jsonwebtoken";
-import {
-  parseLastSeenFilterInput,
-  profileOlderThanLastSeenThreshold,
-  profileWithinLastSeenThreshold,
-} from "@/lib/lastSeen";
+import { parseLastSeenFilterInput } from "@/lib/lastSeen";
 import { parseUpdatedDateFromInput } from "@/lib/parseUpdatedDateFilter";
 import { escapeRegExp, parseKeywordAndTerms } from "@/lib/keywordSearch";
 
@@ -161,7 +157,17 @@ export async function GET(request: Request) {
     }
   }
 
-  // Combine all conditions with $and if there are multiple conditions
+  // Push lastSeen filter into MongoDB using the stored lastSeenMinutesApprox field
+  if (lastSeenFilter.kind === "within") {
+    andConditions.push({
+      lastSeenMinutesApprox: { $exists: true, $ne: null, $lte: lastSeenFilter.maxMinutes },
+    });
+  } else if (lastSeenFilter.kind === "older") {
+    andConditions.push({
+      lastSeenMinutesApprox: { $exists: true, $ne: null, $gt: lastSeenFilter.minMinutes },
+    });
+  }
+
   if (andConditions.length > 0) {
     query.$and = andConditions;
   }
@@ -169,40 +175,16 @@ export async function GET(request: Request) {
   try {
     await connectDB();
 
-    const total = await Profile.countDocuments();
-
-    let matched: number;
-    let profiles: Record<string, unknown>[];
-
-    if (
-      lastSeenFilter.kind === "within" ||
-      lastSeenFilter.kind === "older"
-    ) {
-      const allMatching = await Profile.find(query)
-        .sort({ updatedAt: -1 })
-        .lean()
-        .exec();
-      const filtered = allMatching.filter((p) => {
-        const row = {
-          lastSeen: p.lastSeen as string | undefined,
-          lastSeenMinutesApprox: p.lastSeenMinutesApprox as number | undefined,
-        };
-        if (lastSeenFilter.kind === "within") {
-          return profileWithinLastSeenThreshold(row, lastSeenFilter.maxMinutes);
-        }
-        return profileOlderThanLastSeenThreshold(row, lastSeenFilter.minMinutes);
-      });
-      matched = filtered.length;
-      profiles = filtered.slice(skip, skip + limit) as Record<string, unknown>[];
-    } else {
-      matched = await Profile.countDocuments(query);
-      profiles = (await Profile.find(query)
+    const [total, matched, profiles] = await Promise.all([
+      Profile.estimatedDocumentCount(),
+      Profile.countDocuments(query),
+      Profile.find(query)
         .limit(limit)
         .skip(skip)
         .sort({ updatedAt: -1 })
         .lean()
-        .exec()) as Record<string, unknown>[];
-    }
+        .exec(),
+    ]);
 
     return NextResponse.json(
       { data: profiles, total, matched },

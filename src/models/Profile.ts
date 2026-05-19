@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const ProfileSchema = new mongoose.Schema({
-  userId: String,
+  userId: { type: String, index: true, unique: true, sparse: true },
   name: String,
   location: String,
   age: {
@@ -11,7 +11,7 @@ const ProfileSchema = new mongoose.Schema({
   },
   lastSeen: String,
   /** Approximate minutes since last co-founder-matching activity; derived from `lastSeen` text for filtering. */
-  lastSeenMinutesApprox: { type: Number, required: false },
+  lastSeenMinutesApprox: { type: Number, required: false, index: true },
   avatar: String,
   sumary: String,
   intro: String,
@@ -42,7 +42,7 @@ const ProfileSchema = new mongoose.Schema({
   /** Temporary claim lock for database-mode oldest-first scraping. */
   scrapeLockedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date },
+  updatedAt: { type: Date, index: true },
   status: {
     type: String,
     enum: ["default", "active", "pending", "archived"],
