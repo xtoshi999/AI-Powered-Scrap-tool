@@ -1,10 +1,12 @@
 'use client'
 import Image from "next/image";
+import Link from "next/link";
 import { ProfileModel } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { FaRegCopy } from "react-icons/fa6";
+import { BsSend } from "react-icons/bs";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -260,6 +262,14 @@ const ProfileTable = ({
                               >
                                 <FaRegCopy className="w-4 h-4" />
                               </button>
+                              <Link
+                                target="_blank"
+                                href={String(SITE_URL) + profile.userId}
+                                className="p-1.5 text-xs rounded-md border text-white dark:text-gray-900 bg-green-400 hover:bg-green-500"
+                              >
+                                <BsSend className="w-4 h-4" />
+                              </Link>
+                              
                               <select
                                 value={getStatusText(profile)}
                                 onChange={(e) => {

@@ -323,23 +323,23 @@ const ProfileOverview = ({
             </div>
 
             <div className="grid gap-6">
-              <section>
+              {/* <section>
                 <p>{profile.sumary}</p>
-              </section>
+              </section> */}
 
               <section>
-                <h2 className="text-xl font-semibold mb-4">About Me</h2>
+                {/* <h2 className="text-xl font-semibold mb-4">About Me</h2>
                 <h3 className="font-semibold my-1">Intro</h3>
                 <p>{profile.intro}</p>
                 <h3 className="font-semibold my-1">Life Story</h3>
                 <p>{profile.lifeStory}</p>
                 <h3 className="font-semibold my-1">Free Time</h3>
-                <p>{profile.freeTime}</p>
+                <p>{profile.freeTime}</p> */}
                 <h3 className="font-semibold my-1">Other</h3>
                 <p>{profile.other}</p>
               </section>
 
-              <section>
+              {/* <section>
                 <h2 className="text-xl font-semibold mb-4">My Background</h2>
                 <h3 className="font-semibold my-1">
                   Impressive accomplishment
@@ -357,7 +357,7 @@ const ProfileOverview = ({
                     <li key={idx}>{item}</li>
                   ))}
                 </ul>
-              </section>
+              </section> */}
 
               <section>
                 <h2 className="text-xl font-semibold mb-4">
@@ -388,22 +388,13 @@ const ProfileOverview = ({
 
               <section>
                 <h2 className="text-xl font-semibold mb-4">Interests</h2>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-row gap-4">
                   <div>
-                    <h3 className="font-semibold my-1">Shared</h3>
-                    <ul className="list-disc pl-5">
-                      {profile.interests?.shared?.map((interest, i) => (
-                        <li key={i}>{interest}</li>
-                      ))}
-                    </ul>
+                    <p>{profile.interests?.shared?.join(", ")}</p>
                   </div>
                   <div>
-                    <h3 className="font-semibold my-1">Personal</h3>
-                    <ul className="list-disc pl-5">
-                      {profile.interests?.personal?.map((interest, i) => (
-                        <li key={i}>{interest}</li>
-                      ))}
-                    </ul>
+                    
+                    <p>{profile.interests?.personal?.join(", ")}</p>
                   </div>
                 </div>
               </section>
