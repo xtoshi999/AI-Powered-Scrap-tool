@@ -186,11 +186,12 @@ const ProfileTable = ({
     <thead className="text-sm text-left bg-gray-50 dark:bg-gray-800 top-0 z-10">
       <tr className="text-gray-600 dark:text-gray-400 uppercase">
         <th className="p-2">Table</th>
+        <th className="p-2">Status</th>
         <th className="p-2">Name</th>
         <th className="p-2">Location</th>
         <th className="p-2">Seen</th>
         <th className="p-2">Date</th>
-        <th className="p-2">Status</th>
+        
       </tr>
     </thead>
   );
@@ -241,18 +242,6 @@ const ProfileTable = ({
                               )}
                             </div>
                           </td>
-                          <td className="p-4 align-top break-words">
-                            {profile.name || "N/A"}
-                          </td>
-                          <td className="p-4 align-top break-words">
-                            {profile.location || "N/A"}
-                          </td>
-                          <td className="p-4 whitespace-nowrap align-top">
-                            {profile.lastSeen ? profile.lastSeen : "N/A"}
-                          </td>
-                          <td className="p-4 whitespace-nowrap align-top">
-                            {profile.updatedAt ? formatUpdatedAtUTC(profile.updatedAt) : "N/A"}
-                          </td>
                           <td className="p-2 align-top">
                             <div className="relative flex flex-wrap items-center gap-2">
                               <button
@@ -299,6 +288,19 @@ const ProfileTable = ({
                               </select>
                             </div>
                           </td>
+                          <td className="p-4 align-top break-words">
+                            {profile.name || "N/A"}
+                          </td>
+                          <td className="p-4 align-top break-words">
+                            {profile.location || "N/A"}
+                          </td>
+                          <td className="p-4 whitespace-nowrap align-top">
+                            {profile.lastSeen ? profile.lastSeen : "N/A"}
+                          </td>
+                          <td className="p-4 whitespace-nowrap align-top">
+                            {profile.updatedAt ? formatUpdatedAtUTC(profile.updatedAt) : "N/A"}
+                          </td>
+                          
                         </tr>
                       );
                     })}
